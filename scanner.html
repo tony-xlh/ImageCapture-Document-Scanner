@@ -311,24 +311,21 @@
     let cvs = captureFrame();
     const quads = await ddn.detectQuad(cvs);
     detecting = false;
+    let overlay = document.getElementsByClassName("overlay")[0];
+    overlay.innerHTML = "";
     if (quads.length>0) {
       let quad = quads[0];
       console.log(quad);
-      drawOverlay(quad);
-    }else{
-      let overlay = document.getElementsByClassName("overlay")[0];
-      overlay.innerHTML = "";
+      drawOverlay(quad,overlay);
     }
   }
 
-  function drawOverlay(quad){
+  function drawOverlay(quad,svg){
     let points = quad.location.points;
-    let overlay = document.getElementsByClassName("overlay")[0];
-    overlay.innerHTML = "";
     let polygon = document.createElementNS("http://www.w3.org/2000/svg","polygon");
     polygon.setAttribute("points",getPointsData(points));
     polygon.setAttribute("class","detectedPolygon");
-    overlay.appendChild(polygon);
+    svg.appendChild(polygon);
   }
 
   function getPointsData(points){
@@ -359,15 +356,31 @@
 
   function loadPhotoToSVG(cvs){
     let img = new Image();
-    img.onload = function () {
+    img.onload = async function () {
       let svgElement = document.getElementsByClassName("cropperSVG")[0];
       svgElement.innerHTML = "";
       let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
       svgImage.setAttribute("href",img.src);
       svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
       svgElement.appendChild(svgImage);
+      let quads = await ddn.detectQuad(img);
+      console.log(quads);
+      if (quads.length>0) {
+        let svg = document.getElementsByClassName("cropperSVG")[0];
+        drawOverlay(quads[0],svg);
+        drawVertices(quads[0],svg);
+      }
     }
     img.src = cvs.toDataURL();
+  }
+
+  function drawVertices(quad,svg){
+    let points = quad.location.points;
+    if (svg.getElementsByTagName("rect").length === 4) {
+      //to do
+    }else{
+
+    }
   }
   </script>
 </body>
