@@ -13,10 +13,6 @@
       width: 100%;
       height: 100%;
     }
-    .camera {
-      width: 100%;
-      height: 100%;
-    }
 
     #closeCameraBtn {
       position: absolute;
@@ -30,6 +26,15 @@
       top: 20px;
       right: 0;
     }
+
+
+
+    .detectedPolygon {
+      stroke:green;
+      stroke-width: 2;
+      fill:lime;
+      opacity: 0.3;
+    }
   </style>
 </head>
 <body>
@@ -42,7 +47,9 @@
     <img id="normalized" />
   </div>
   <div class="scanner fullscreen" style="display:none;">
-    <video class="camera" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
+    <video class="camera fullscreen" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
+    <svg class="overlay fullscreen" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
+    </svg>
     <button id="closeCameraBtn">Close</button>
     <button id="captureBtn">Capture</button>
   </div>
@@ -51,7 +58,9 @@
   const video = document.querySelector('video');
   video.addEventListener('loadeddata', (event) => {
     console.log("video started");
+    document.getElementsByClassName("overlay")[0].setAttribute("viewBox","0 0 "+video.videoWidth+" "+video.videoHeight);
     toggleDisplay(true);
+    startDetecting();
   });
   video.addEventListener('ended', (event) => {
     onVideoStopped();
@@ -93,6 +102,7 @@
   let localStream;
   let cameraDevices = [];
   let dataCanvas;
+  let interval;
   window.onload = async function() {
     initDDN();
     await requestCameraPermission();
@@ -195,6 +205,7 @@
   };
 
   function onVideoStopped(){
+    stopDetecting();
     toggleDisplay(false);
   }
   
@@ -226,6 +237,43 @@
       }
     });
   }
+
+  function startDetecting(){
+    interval = setInterval(detect,200);
+  }
+
+  function stopDetecting(){
+    clearInterval(interval);
+  }
+
+  async function detect() {
+    let cvs = captureFrame();
+    const quads = await ddn.detectQuad(cvs);
+    if (quads.length>0) {
+      let quad = quads[0];
+      console.log(quad);
+      drawOverlay(quad);
+    }
+  }
+
+  function drawOverlay(quad){
+    let points = quad.location.points;
+    let overlay = document.getElementsByClassName("overlay")[0];
+    overlay.innerHTML = "";
+    let polygon = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+    polygon.setAttribute("points",getPointsData(points));
+    polygon.setAttribute("class","detectedPolygon");
+    overlay.appendChild(polygon);
+  }
+
+  function getPointsData(points){
+    let pointsData = points[0].x + "," + points[0].y + " ";
+    pointsData = pointsData + points[1].x + "," + points[1].y +" ";
+    pointsData = pointsData + points[2].x + "," + points[2].y +" ";
+    pointsData = pointsData + points[3].x + "," + points[3].y;
+    return pointsData;
+  }
+
   </script>
 </body>
 </html>
