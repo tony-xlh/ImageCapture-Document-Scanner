@@ -319,20 +319,26 @@
     const quads = await ddn.detectQuad(cvs);
     detecting = false;
     let overlay = document.getElementsByClassName("overlay")[0];
-    overlay.innerHTML = "";
     if (quads.length>0) {
       let quad = quads[0];
       console.log(quad);
       drawOverlay(quad,overlay);
+    }else{
+      overlay.innerHTML = "";
     }
   }
 
   function drawOverlay(quad,svg){
     let points = quad.location.points;
-    let polygon = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+    let polygon;
+    if (svg.getElementsByTagName("polygon").length === 1) {
+      polygon = svg.getElementsByTagName("polygon")[0];
+    }else{
+      polygon = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+      polygon.setAttribute("class","detectedPolygon");
+      svg.appendChild(polygon);
+    }
     polygon.setAttribute("points",getPointsData(points));
-    polygon.setAttribute("class","detectedPolygon");
-    svg.appendChild(polygon);
   }
 
   function getPointsData(points){
@@ -392,8 +398,8 @@
         let rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
         svg.appendChild(rect);
         rect.setAttribute("class","vertice")
-        rect.setAttribute("width",20);
-        rect.setAttribute("height",20);
+        rect.setAttribute("width",verticeSize);
+        rect.setAttribute("height",verticeSize);
         rects.push(rect);
       }
     }
