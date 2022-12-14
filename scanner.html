@@ -105,7 +105,7 @@
     </div>
   </div>
   <div class="cropper full" style="display:none;">
-    <svg class="cropperSVG" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
+    <svg class="cropperSVG full" version="1.1" xmlns="http://www.w3.org/2000/svg">
     </svg>
   </div>
   <script>
@@ -125,9 +125,6 @@
 
   document.getElementsByClassName("shutterButton")[0].addEventListener('click', (event) => {
     capture();
-    stop();
-    stopDetecting();
-    switchPage(2);
   });
   
   document.getElementsByClassName("closeButton")[0].addEventListener('click', (event) => {
@@ -354,8 +351,23 @@
     }else{
       cvs = captureFrame();
     }
-    console.log(cvs);
-    document.getElementsByClassName("photoTaken")[0].src = cvs.toDataURL();
+    stop();
+    stopDetecting();
+    switchPage(2);
+    loadPhotoToSVG(cvs);
+  }
+
+  function loadPhotoToSVG(cvs){
+    let img = new Image();
+    img.onload = function () {
+      let svgElement = document.getElementsByClassName("cropperSVG")[0];
+      svgElement.innerHTML = "";
+      let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
+      svgImage.setAttribute("href",img.src);
+      svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
+      svgElement.appendChild(svgImage);
+    }
+    img.src = cvs.toDataURL();
   }
   </script>
 </body>
