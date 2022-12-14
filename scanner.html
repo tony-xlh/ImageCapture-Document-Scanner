@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Scanner</title>
+  <script src="https://cdn.jsdelivr.net/npm/dynamsoft-document-normalizer@1.0.11/dist/ddn.js"></script>
+  <style>
+    .fullscreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .camera {
+      width: 100%;
+      height: 100%;
+    }
+
+    #closeCameraBtn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      height: 20px;
+    }
+
+    #captureBtn {
+      position: absolute;
+      top: 20px;
+      right: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="home">
+    <select id="cameraSelect"></select>
+    <button id="startCameraBtn">Start Camera</button>
+    <br/>
+    <img id="photoTaken" />
+    <br/>
+    <img id="normalized" />
+  </div>
+  <div class="scanner fullscreen" style="display:none;">
+    <video class="camera" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
+    <button id="closeCameraBtn">Close</button>
+    <button id="captureBtn">Capture</button>
+  </div>
+  <script>
+  const cameraSelect = document.getElementById("cameraSelect");
+  const video = document.querySelector('video');
+  video.addEventListener('loadeddata', (event) => {
+    console.log("video started");
+    toggleDisplay(true);
+  });
+  video.addEventListener('ended', (event) => {
+    onVideoStopped();
+  });
+  
+  document.getElementById("startCameraBtn").addEventListener('click', (event) => {
+    console.log("start camera");
+    let options = {};
+    if (cameraSelect.selectedIndex != -1) {
+      options.deviceId = cameraSelect.selectedOptions[0].value;
+    }
+    play(options);
+  });
+  
+  document.getElementById("closeCameraBtn").addEventListener('click', (event) => {
+    stop();
+  });
+
+  document.getElementById("captureBtn").addEventListener('click', async (event) => {
+    let cvs;
+    if (imageCapture) {
+      try {
+        cvs = await takePhoto();  
+      } catch (error) {
+        console.log(error);
+        cvs = captureFrame();  
+      }
+    }else{
+      cvs = captureFrame();
+    }
+    console.log(cvs);
+    document.getElementById("photoTaken").src = cvs.toDataURL();
+    stop();
+  });
+  
+  
+  let ddn;
+  let imageCapture;
+  let localStream;
+  let cameraDevices = [];
+  let dataCanvas;
+  window.onload = async function() {
+    initDDN();
+    await requestCameraPermission();
+    await loadCameraDevices();
+    loadCameraDevicesToSelect();
+  }
+  
+  async function initDDN(){
+    Dynamsoft.DDN.DocumentNormalizer.license = "DLS2eyJoYW5kc2hha2VDb2RlIjoiMjM0ODEwLTE2NTMzNTY5NzQ0ODMiLCJvcmdhbml6YXRpb25JRCI6IjIzNDgxMCJ9";
+    ddn = await Dynamsoft.DDN.DocumentNormalizer.createInstance();
+  }
+  
+  async function loadCameraDevices(){
+    const constraints = {video: true, audio: false};
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    for (let i=0;i<devices.length;i++){
+      let device = devices[i];
+      if (device.kind == 'videoinput'){ // filter out audio devices
+        cameraDevices.push(device);
+      }
+    }
+  }
+  
+  function loadCameraDevicesToSelect(){
+    for (let i=0;i<cameraDevices.length;i++){
+      let device = cameraDevices[i];
+      cameraSelect.appendChild(new Option(device.label,device.deviceId))
+    }
+  }
+  
+  async function requestCameraPermission() {
+    const constraints = {video: true, audio: false};
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const tracks = stream.getTracks();
+    for (let i=0;i<tracks.length;i++) {
+      const track = tracks[i];
+      track.stop();  // stop the opened camera
+    }
+  }
+
+  function toggleDisplay(cameraOn) {
+    let home = document.getElementsByClassName("home")[0];
+    let scanner = document.getElementsByClassName("scanner")[0];
+    if (cameraOn) {
+      scanner.style.display = "";
+      home.style.display = "none";
+    }else{
+      scanner.style.display = "none";
+      home.style.display = "";
+    }
+  }
+  
+  function play(options) {
+    stop(); // close before play
+    let constraints = {};
+  
+    if (options.deviceId){
+      constraints = {
+        video: {deviceId: options.deviceId},
+        audio: false
+      }
+    }else{
+      constraints = {
+        video: true,
+        audio: false
+      }
+    }
+
+
+    navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+      localStream = stream;
+      // Attach local stream to video element      
+      video.srcObject = stream;
+      if ("ImageCapture" in window) {
+        const track = localStream.getVideoTracks()[0];
+        imageCapture = new ImageCapture(track);
+        console.log("ImageCapture supported");
+      }else{
+        console.log("ImageCapture not supported");
+      }
+    }).catch(function(err) {
+      console.error('getUserMediaError', err, err.stack);
+    });
+  }
+  
+  function stop() {
+    try{
+      if (localStream){
+        const tracks = localStream.getTracks();
+        for (let i=0;i<tracks.length;i++) {
+          const track = tracks[i];
+          track.stop();
+        }
+      }
+      onVideoStopped();
+    } catch (e){
+      alert(e.message);
+    }
+  };
+
+  function onVideoStopped(){
+    toggleDisplay(false);
+  }
+  
+  function captureFrame(){
+    let w = video.videoWidth;
+    let h = video.videoHeight;
+    let canvas = document.createElement('canvas');
+    canvas.width  = w;
+    canvas.height = h;
+    let ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    return canvas;
+  }
+  
+  function takePhoto(){
+    return new Promise(async function (resolve, reject) {
+      try {
+        let blob = await imageCapture.takePhoto();
+        console.log(blob);
+        let bitmap = await createImageBitmap(blob);
+        let canvas = document.createElement('canvas');
+        canvas.width  = bitmap.width;
+        canvas.height = bitmap.height;
+        let ctx = canvas.getContext('2d');
+        ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
+        resolve(canvas);
+      } catch (error) {
+        reject(error); //it may not work with virtual cameras
+      }
+    });
+  }
+  </script>
+</body>
+</html>
