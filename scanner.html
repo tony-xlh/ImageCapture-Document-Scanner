@@ -104,30 +104,36 @@
       <div class="placeholder"></div>
     </div>
   </div>
+  <div class="cropper full" style="display:none;">
+    <svg class="cropperSVG" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
+    </svg>
+  </div>
   <script>
   const cameraSelect = document.getElementsByClassName("cameraSelect")[0];
   const video = document.querySelector('video');
   video.addEventListener('loadeddata', (event) => {
     console.log("video started");
     document.getElementsByClassName("overlay")[0].setAttribute("viewBox","0 0 "+video.videoWidth+" "+video.videoHeight);
-    toggleDisplay(true);
     startDetecting();
   });
   
   document.getElementsByClassName("startCameraBtn")[0].addEventListener('click', (event) => {
     console.log("start camera");
+    switchPage(1);
     startSelectedCamera();
   });
 
   document.getElementsByClassName("shutterButton")[0].addEventListener('click', (event) => {
     capture();
     stop();
-    onVideoStopped();
+    stopDetecting();
+    switchPage(2);
   });
   
   document.getElementsByClassName("closeButton")[0].addEventListener('click', (event) => {
     stop();
-    onVideoStopped();
+    stopDetecting();
+    switchPage(0);
   });
 
   document.getElementsByClassName("switchButton")[0].addEventListener('click', (event) => {
@@ -190,15 +196,20 @@
     }
   }
 
-  function toggleDisplay(cameraOn) {
+  function switchPage(index) {
     let home = document.getElementsByClassName("home")[0];
     let scanner = document.getElementsByClassName("scanner")[0];
-    if (cameraOn) {
-      scanner.style.display = "";
-      home.style.display = "none";
-    }else{
-      scanner.style.display = "none";
-      home.style.display = "";
+    let cropper = document.getElementsByClassName("cropper")[0];
+    let pages = [home, scanner, cropper];
+    console.log(pages);
+    for (let i = 0; i < pages.length; i++) {
+      console.log(i);
+      const page = pages[i];
+      if (i === index) {
+        page.style.display = "";
+      }else{
+        page.style.display = "none";
+      }
     }
   }
 
@@ -256,11 +267,6 @@
       alert(e.message);
     }
   };
-
-  function onVideoStopped(){
-    stopDetecting();
-    toggleDisplay(false);
-  }
   
   function captureFrame(){
     let w = video.videoWidth;
