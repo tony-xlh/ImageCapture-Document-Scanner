@@ -158,8 +158,12 @@
   let dataCanvas;
   let interval;
   let detecting = false;
-  let verticeSize = 20;
+  let rectSize = 20;
+  let selectedRect;
+  let detectedQuad;
+  let offset;
   window.onload = async function() {
+    addEventsForSVG();
     initDDN();
     await requestCameraPermission();
     await loadCameraDevices();
@@ -376,19 +380,20 @@
       svgImage.setAttribute("href",img.src);
       svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
       svgElement.appendChild(svgImage);
-      verticeSize = 20/(640/img.width);
+      rectSizeSize = 20/(640/img.width);
       let quads = await ddn.detectQuad(cvs);
       console.log(quads);
       if (quads.length>0) {
+        detectedQuad = quads[0];
         let svg = document.getElementsByClassName("cropperSVG")[0];
         drawOverlay(quads[0],svg);
-        drawVertices(quads[0],svg);
+        drawRects(quads[0],svg);
       }
     }
     img.src = cvs.toDataURL();
   }
 
-  function drawVertices(quad,svg){
+  function drawRects(quad,svg){
     let points = quad.location.points;
     let rects = [];
     if (svg.getElementsByTagName("rect").length === 4) {
@@ -398,8 +403,10 @@
         let rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
         svg.appendChild(rect);
         rect.setAttribute("class","vertice")
-        rect.setAttribute("width",verticeSize);
-        rect.setAttribute("height",verticeSize);
+        rect.setAttribute("index",index);
+        rect.setAttribute("width",rectSize);
+        rect.setAttribute("height",rectSize);
+        addEventsForRect(rect)
         rects.push(rect);
       }
     }
@@ -412,16 +419,95 @@
 
   function getOffsetX(index){
     if (index == 0 || index == 3) {
-        return - verticeSize;
+        return - rectSize;
     }
     return 0;
   }
   
   function getOffsetY(index){
     if (index == 0 || index == 1) {
-      return - verticeSize;
+      return - rectSize;
     }
     return 0;
+  }
+
+
+    
+  function addEventsForRect(rect) {
+    rect.addEventListener("touchstart", function(event){
+      console.log(event);
+      selectedRect = rect;
+    });
+    rect.addEventListener("touchend", function(event){
+      console.log(event);
+      selectedRect = undefined;
+    });
+    rect.addEventListener("mouseup", function(event){
+      console.log(event);
+      selectedRect = undefined;
+    });
+    rect.addEventListener("mousedown", function(event){
+      console.log(event);
+      selectedRect = rect;
+    });
+    rect.addEventListener("mouseleave", function(event){
+      console.log(event);
+      selectedRect = undefined;
+    });
+  }
+
+  //https://www.petercollingridge.co.uk/tutorials/svg/interactive/dragging/
+  function addEventsForSVG() {
+    let svg = document.getElementsByClassName("cropperSVG")[0];
+    svg.addEventListener('mousedown', startDrag);
+    svg.addEventListener('mousemove', drag);
+    svg.addEventListener('mouseup', endDrag);
+    svg.addEventListener('mouseleave', endDrag);
+    svg.addEventListener('touchstart', startDrag);
+    svg.addEventListener('touchmove', drag);
+    svg.addEventListener('touchend', endDrag);
+    function startDrag(evt) {
+      console.log(evt);
+      if (selectedRect) {
+        offset = getMousePosition(evt,svg);
+        offset.x -= parseFloat(selectedRect.getAttribute("x"));
+        offset.y -= parseFloat(selectedRect.getAttribute("y"));
+      }
+    }
+    function drag(evt) {
+      console.log(evt);
+      if (selectedRect) {
+        evt.preventDefault();
+        let coord = getMousePosition(evt,svg);
+        let selectedIndex = selectedRect.getAttribute("index");
+        let points = detectedQuad.location.points;
+        let point = points[selectedIndex];
+        point.x = (coord.x - offset.x) - getOffsetX(selectedIndex);
+        point.y = (coord.y - offset.y) - getOffsetY(selectedIndex);
+        drawOverlay(detectedQuad, svg);
+        drawRects(detectedQuad, svg);
+      }
+    }
+    function endDrag(evt) {
+      //console.log(evt);
+    }
+  }
+
+  function getMousePosition(evt,svg) {
+    var CTM = svg.getScreenCTM();
+    if (evt.targetTouches) {
+      x = evt.targetTouches[0].clientX;
+      y = evt.targetTouches[0].clientY;
+      return {
+        x: (x - CTM.e) / CTM.a,
+        y: (y - CTM.f) / CTM.d
+      };
+    }else{
+      return {
+        x: (evt.clientX - CTM.e) / CTM.a,
+        y: (evt.clientY - CTM.f) / CTM.d
+      };
+    }
   }
   </script>
 </body>
