@@ -14,45 +14,97 @@
       height: 100%;
     }
 
-    #closeCameraBtn {
-      position: absolute;
-      top: 0;
-      right: 0;
-      height: 20px;
-    }
-
-    #captureBtn {
-      position: absolute;
-      top: 20px;
-      right: 0;
-    }
-
     .detectedPolygon {
       stroke:green;
       stroke-width: 2;
       fill:lime;
       opacity: 0.3;
     }
+
+    .scannerHeader {
+      top: 0;
+      left: 0;
+      position: absolute;
+      height: 3em;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+    }
+
+    .scannerFooter {
+      left: 0;
+      bottom: 0;
+      position: absolute;
+      height: 6em;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      flex-direction: row;
+      justify-content: space-evenly;
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .icon {
+      width: 2.5em;
+      height: 2.5em;
+    }
+
+    .shutter {
+      width: 4em;
+      height: 4em;
+      margin-top: calc(var(--shutter-size) / -2);
+      margin-left: calc(var(--shutter-size) / -2);
+      border-radius: 100%;
+      background-color: rgb(198, 205, 216);
+      padding: 12px;
+      box-sizing: border-box;
+    }
+
+    .shutterButton {
+      background-color: rgb(255, 255, 255);
+      border-radius: 100%;
+      width: 100%;
+      height: 100%;
+    }
   </style>
 </head>
 <body>
   <div class="home">
-    <select id="cameraSelect"></select>
-    <button id="startCameraBtn">Start Camera</button>
+    <select class="cameraSelect"></select>
+    <button class="startCameraBtn">Start Camera</button>
     <br/>
-    <img id="photoTaken" />
+    <img class="photoTaken" />
     <br/>
-    <img id="normalized" />
+    <img class="normalized" />
   </div>
   <div class="scanner full" style="display:none;">
-    <video class="camera full" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
-    <svg class="overlay full" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
-    </svg>
-    <button id="closeCameraBtn">Close</button>
-    <button id="captureBtn">Capture</button>
+    <div class="scannerContent">
+      <video class="camera full" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
+      <svg class="overlay full" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
+      </svg>
+    </div>
+    <div class="scannerHeader">
+      <div class="close">
+        <div class="closeButton icon">
+          <img src="cross.svg" alt="close">
+        </div>
+      </div>
+    </div>
+    <div class="scannerFooter">
+      <div class="switch">
+        <div class="switchButton icon">
+          <img src="switch.svg" alt="switch">
+        </div>
+      </div>
+      <div class="shutter">
+        <div class="shutterButton"></div>
+      </div>
+      <div class="placeholder"></div>
+    </div>
   </div>
   <script>
-  const cameraSelect = document.getElementById("cameraSelect");
+  const cameraSelect = document.getElementsByClassName("cameraSelect")[0];
   const video = document.querySelector('video');
   video.addEventListener('loadeddata', (event) => {
     console.log("video started");
@@ -60,40 +112,34 @@
     toggleDisplay(true);
     startDetecting();
   });
-  video.addEventListener('ended', (event) => {
+  
+  document.getElementsByClassName("startCameraBtn")[0].addEventListener('click', (event) => {
+    console.log("start camera");
+    startSelectedCamera();
+  });
+
+  document.getElementsByClassName("shutterButton")[0].addEventListener('click', (event) => {
+    capture();
+    stop();
     onVideoStopped();
   });
   
-  document.getElementById("startCameraBtn").addEventListener('click', (event) => {
-    console.log("start camera");
-    let options = {};
-    if (cameraSelect.selectedIndex != -1) {
-      options.deviceId = cameraSelect.selectedOptions[0].value;
-    }
-    play(options);
-  });
-  
-  document.getElementById("closeCameraBtn").addEventListener('click', (event) => {
+  document.getElementsByClassName("closeButton")[0].addEventListener('click', (event) => {
     stop();
+    onVideoStopped();
   });
 
-  document.getElementById("captureBtn").addEventListener('click', async (event) => {
-    let cvs;
-    if (imageCapture) {
-      try {
-        cvs = await takePhoto();  
-      } catch (error) {
-        console.log(error);
-        cvs = captureFrame();  
+  document.getElementsByClassName("switchButton")[0].addEventListener('click', (event) => {
+    console.log("switch camera");
+    if (cameraSelect.options.length>1) {
+      if (cameraSelect.selectedIndex < cameraSelect.length - 1) {
+        cameraSelect.selectedIndex = cameraSelect.selectedIndex + 1;
+      }else{
+        cameraSelect.selectedIndex = 0;
       }
-    }else{
-      cvs = captureFrame();
     }
-    console.log(cvs);
-    document.getElementById("photoTaken").src = cvs.toDataURL();
-    stop();
+    startSelectedCamera();
   });
-  
   
   let ddn;
   let imageCapture;
@@ -153,6 +199,14 @@
       home.style.display = "";
     }
   }
+
+  function startSelectedCamera(){
+    let options = {};
+    if (cameraSelect.selectedIndex != -1) {
+      options.deviceId = cameraSelect.selectedOptions[0].value;
+    }
+    play(options);
+  }
   
   function play(options) {
     stop(); // close before play
@@ -196,7 +250,6 @@
           track.stop();
         }
       }
-      onVideoStopped();
     } catch (e){
       alert(e.message);
     }
@@ -272,6 +325,21 @@
     return pointsData;
   }
 
+  async function capture(){
+    let cvs;
+    if (imageCapture) {
+      try {
+        cvs = await takePhoto();  
+      } catch (error) {
+        console.log(error);
+        cvs = captureFrame();  
+      }
+    }else{
+      cvs = captureFrame();
+    }
+    console.log(cvs);
+    document.getElementsByClassName("photoTaken")[0].src = cvs.toDataURL();
+  }
   </script>
 </body>
 </html>
