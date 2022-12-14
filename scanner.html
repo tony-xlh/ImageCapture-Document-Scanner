@@ -148,6 +148,7 @@
   let cameraDevices = [];
   let dataCanvas;
   let interval;
+  let detecting = false;
   window.onload = async function() {
     initDDN();
     await requestCameraPermission();
@@ -291,6 +292,7 @@
   }
 
   function startDetecting(){
+    detecting = false;
     interval = setInterval(detect,200);
   }
 
@@ -299,8 +301,13 @@
   }
 
   async function detect() {
+    if (detecting === true) {
+      return;
+    }
+    detecting = true;
     let cvs = captureFrame();
     const quads = await ddn.detectQuad(cvs);
+    detecting = false;
     if (quads.length>0) {
       let quad = quads[0];
       console.log(quad);
