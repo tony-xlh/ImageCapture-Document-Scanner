@@ -13,14 +13,7 @@
       width: 100%;
       height: 100%;
     }
-
-    .detectedPolygon {
-      stroke:green;
-      stroke-width: 2;
-      fill:lime;
-      opacity: 0.3;
-    }
-
+    
     .scannerHeader {
       top: 0;
       left: 0;
@@ -66,6 +59,19 @@
       border-radius: 100%;
       width: 100%;
       height: 100%;
+    }
+
+    .detectedPolygon {
+      stroke:green;
+      stroke-width: 2;
+      fill:lime;
+      opacity: 0.3;
+    }
+
+    .vertice {
+      stroke:darkgreen;
+      stroke-width: 3;
+      fill: rgba(0,255,0,0.3);
     }
   </style>
 </head>
@@ -152,6 +158,7 @@
   let dataCanvas;
   let interval;
   let detecting = false;
+  let verticeSize = 20;
   window.onload = async function() {
     initDDN();
     await requestCameraPermission();
@@ -363,7 +370,8 @@
       svgImage.setAttribute("href",img.src);
       svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
       svgElement.appendChild(svgImage);
-      let quads = await ddn.detectQuad(img);
+      verticeSize = 20/(640/img.width);
+      let quads = await ddn.detectQuad(cvs);
       console.log(quads);
       if (quads.length>0) {
         let svg = document.getElementsByClassName("cropperSVG")[0];
@@ -376,11 +384,38 @@
 
   function drawVertices(quad,svg){
     let points = quad.location.points;
+    let rects = [];
     if (svg.getElementsByTagName("rect").length === 4) {
-      //to do
+      rects = svg.getElementsByTagName("rect");
     }else{
-
+      for (let index = 0; index < 4; index++) {
+        let rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+        svg.appendChild(rect);
+        rect.setAttribute("class","vertice")
+        rect.setAttribute("width",20);
+        rect.setAttribute("height",20);
+        rects.push(rect);
+      }
     }
+    for (let index = 0; index < 4; index++) {
+      let rect = rects[index];
+      rect.setAttribute("x",points[index].x+getOffsetX(index));
+      rect.setAttribute("y",points[index].y+getOffsetY(index));
+    }
+  }
+
+  function getOffsetX(index){
+    if (index == 0 || index == 3) {
+        return - verticeSize;
+    }
+    return 0;
+  }
+  
+  function getOffsetY(index){
+    if (index == 0 || index == 1) {
+      return - verticeSize;
+    }
+    return 0;
   }
   </script>
 </body>
