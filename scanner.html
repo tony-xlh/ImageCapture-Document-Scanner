@@ -81,6 +81,7 @@
   <div class="scanner full" style="display:none;">
     <div class="scannerContent">
       <video class="camera full" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
+      <canvas class="hiddenCVS" style="display:none"></canvas>
       <svg class="overlay full" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
       </svg>
     </div>
@@ -263,7 +264,7 @@
   function captureFrame(){
     let w = video.videoWidth;
     let h = video.videoHeight;
-    let canvas = document.createElement('canvas');
+    let canvas = document.getElementsByClassName("hiddenCVS")[0];
     canvas.width  = w;
     canvas.height = h;
     let ctx = canvas.getContext('2d');
@@ -277,7 +278,7 @@
         let blob = await imageCapture.takePhoto();
         console.log(blob);
         let bitmap = await createImageBitmap(blob);
-        let canvas = document.createElement('canvas');
+        let canvas = document.getElementsByClassName("hiddenCVS")[0];
         canvas.width  = bitmap.width;
         canvas.height = bitmap.height;
         let ctx = canvas.getContext('2d');
@@ -304,6 +305,9 @@
       let quad = quads[0];
       console.log(quad);
       drawOverlay(quad);
+    }else{
+      let overlay = document.getElementsByClassName("overlay")[0];
+      overlay.innerHTML = "";
     }
   }
 
