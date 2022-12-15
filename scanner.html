@@ -307,6 +307,9 @@
 
   document.getElementsByClassName("rotateButton")[0].addEventListener('click', (event) => {
     rotationDegree = rotationDegree - 90;
+    if (rotationDegree === -360) {
+      rotationDegree = 0;
+    }
     document.getElementById("normalized").style.transform = "rotate("+rotationDegree+"deg)";
   });
 
@@ -742,7 +745,7 @@
     let canvas = document.getElementsByClassName("hiddenCVS")[0];
     let ctx = canvas.getContext("2d");	
     // Assign width and height.
-    if (rotationDegree === 180) {
+    if (rotationDegree === -180) {
       canvas.width = img.width;
       canvas.height = img.height;
     }else{
