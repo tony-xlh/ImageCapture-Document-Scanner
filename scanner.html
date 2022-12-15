@@ -111,15 +111,53 @@
     }
 
     .toolbar {
+      position: absolute;
       top: 0;
       left: 0;
-      position: absolute;
       height: 3em;
       width: 100%;
       background: rgba(0, 0, 0, 0.8);
       display: flex;
       align-items: center;
     }
+
+    .filterList {
+      position: absolute;
+      top: 3em;
+      left: 0;
+      height: 4em;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+    }
+
+    .filterImg {
+      display: block;
+      margin: 0 auto;
+      height: 2.5em;
+    }
+
+    .filterImg.selected {
+      border: 1px solid #fe8e14;
+    } 
+
+    .filterItem {
+      margin-left: 1em;
+    }
+
+    .filterLabel {
+      text-align:center;
+      color:white;
+      height: 1em;
+    }
+
+    .invert {
+      filter:invert(1);
+      background: black;
+      border-radius: 10px;
+    }
+
   </style>
 </head>
 <body>
@@ -136,12 +174,12 @@
     </div>
     <div class="scannerHeader toolbar">
       <div class="closeButton">
-        <img class="icon" src="cross.svg" alt="close">
+        <img class="icon" src="cross.svg" alt="close"/>
       </div>
     </div>
     <div class="scannerFooter">
       <div class="switchButton">
-        <img class="icon" src="switch.svg" alt="switch">
+        <img class="icon" src="switch.svg" alt="switch"/>
       </div>
       <div class="shutter">
         <div class="shutterButton"></div>
@@ -154,10 +192,10 @@
     </svg>
     <div class="okayCancelFooter">
       <div class="cropperCancelButton cancel">
-        <img class="icon" src="cancel.svg" alt="cancel">
+        <img class="icon" src="cancel.svg" alt="cancel"/>
       </div>
       <div class="cropperOkayButton okay icon">
-        <img class="icon" src="okay.svg" alt="okay">
+        <img class="icon" src="okay.svg" alt="okay"/>
       </div>
     </div>
   </div>
@@ -165,15 +203,32 @@
     <img id="normalized" alt="normalized">
     <div class="toolbar">
       <div class="rotateButton">
-        <img class="icon" src="rotate-counter-clockwise.svg" alt="rotate">
+        <img class="icon" src="rotate-counter-clockwise.svg" alt="rotate"/>
+      </div>
+      <div class="filterButton">
+        <img class="icon" src="color-filter.svg" alt="color-filter"/>
+      </div>
+    </div>
+    <div class="filterList" style="display:none;">
+      <div class="blackWhite filterItem">
+        <img class="filterImg" alt="blackwhite"/>
+        <div class="filterLabel">B&W</div>
+      </div>
+      <div class="grayscale filterItem">
+        <img class="filterImg" alt="grayscale"/>
+        <div class="filterLabel">Grayscale</div>
+      </div>
+      <div class="color filterItem">
+        <img class="filterImg" alt="color"/>
+        <div class="filterLabel">Color</div>
       </div>
     </div>
     <div class="okayCancelFooter">
       <div class="resultViewerCancelButton cancel">
-        <img class="icon" src="cancel.svg" alt="cancel">
+        <img class="icon" src="cancel.svg" alt="cancel"/>
       </div>
       <div class="resultViewerOkayButton okay">
-        <img class="icon" src="okay.svg" alt="okay">
+        <img class="icon" src="okay.svg" alt="okay"/>
       </div>
     </div>
   </div>
@@ -220,6 +275,7 @@
   document.getElementsByClassName("resultViewerOkayButton")[0].addEventListener('click', (event) => {
     let container = document.createElement("div");
     let imgElement = document.createElement("img");
+    
     imgElement.src = document.getElementById("normalized").src;
     container.appendChild(imgElement);
     document.getElementsByClassName("home")[0].appendChild(container);
@@ -246,6 +302,34 @@
     rotationDegree = rotationDegree - 90;
     document.getElementById("normalized").style.transform = "rotate("+rotationDegree+"deg)";
   });
+
+  document.getElementsByClassName("filterButton")[0].addEventListener('click', (event) => {
+    let filterButton = document.getElementsByClassName("filterButton")[0];
+    let filterList = document.getElementsByClassName("filterList")[0];
+    if (filterButton.classList.contains("invert")) {
+      filterButton.classList.remove("invert");
+      filterList.style.display = "none";
+    }else{
+      filterButton.classList.add("invert");
+      filterList.style.display = "";
+    }
+  });
+  
+  function addEventsForFilterImages() {
+    let images = document.getElementsByClassName("filterImg");
+    for (let i = 0; i < images.length; i++) {
+      const imgElement = images[i];
+      imgElement.addEventListener('click', (event) => {
+        for (let j = 0; j < images.length; j++) {
+          images[j].classList.remove("selected");
+        }
+        imgElement.classList.add("selected");
+        document.getElementById("normalized").src = imgElement.src;
+      }); 
+    }
+  }
+
+  addEventsForFilterImages();
   
   
   let ddn;
@@ -490,6 +574,7 @@
         let svg = document.getElementsByClassName("cropperSVG")[0];
         drawOverlay(quads[0],svg);
         drawRects(quads[0],svg);
+        loadFilterImages();
       }
     }
     img.src = cvs.toDataURL();
@@ -608,6 +693,32 @@
         y: (evt.clientY - CTM.f) / CTM.d
       };
     }
+  }
+
+  async function loadFilterImages(){
+    let modes = ["blackWhite","grayscale","color"];
+    for (let index = 0; index < modes.length; index++) {
+      const mode = modes[index];
+      let filterImg = document.querySelector("."+mode+" .filterImg");
+      await updateTemplate(mode);
+      console.log("normalize");
+      let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
+      filterImg.src = imageData.image.toCanvas().toDataURL();  
+      console.log(filterImg);
+    }
+  }
+
+  async function updateTemplate(mode){
+    let template;
+    if (mode === "blackWhite") {
+      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_BINARY\"}]}";
+    } else if (mode === "grayscale") {
+      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_GRAYSCALE\"}]}";
+    } else {
+      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_COLOUR\"}]}";
+    }
+    console.log(template);
+    await ddn.setRuntimeSettings(template);
   }
   </script>
 </body>
