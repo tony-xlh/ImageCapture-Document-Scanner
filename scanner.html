@@ -267,15 +267,15 @@
   });
 
   document.getElementsByClassName("cropperOkayButton")[0].addEventListener('click', async (event) => {
-    let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
-    document.getElementById("normalized").src = imageData.image.toCanvas().toDataURL();
+    await loadFilterImages();
+    document.getElementById("normalized").src = document.querySelector(".color .filterImg").src;
     switchPage(3);
   });
 
   document.getElementsByClassName("resultViewerOkayButton")[0].addEventListener('click', (event) => {
     let container = document.createElement("div");
     let imgElement = document.createElement("img");
-    
+
     imgElement.src = document.getElementById("normalized").src;
     container.appendChild(imgElement);
     document.getElementsByClassName("home")[0].appendChild(container);
@@ -574,7 +574,6 @@
         let svg = document.getElementsByClassName("cropperSVG")[0];
         drawOverlay(quads[0],svg);
         drawRects(quads[0],svg);
-        loadFilterImages();
       }
     }
     img.src = cvs.toDataURL();
@@ -701,10 +700,8 @@
       const mode = modes[index];
       let filterImg = document.querySelector("."+mode+" .filterImg");
       await updateTemplate(mode);
-      console.log("normalize");
       let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
       filterImg.src = imageData.image.toCanvas().toDataURL();  
-      console.log(filterImg);
     }
   }
 
