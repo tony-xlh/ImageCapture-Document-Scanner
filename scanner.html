@@ -180,6 +180,12 @@
   document.getElementsByClassName("shutterButton")[0].addEventListener('click', (event) => {
     capture();
   });
+
+  document.getElementsByClassName("closeButton")[0].addEventListener('click', (event) => {
+    stopDetecting();
+    stop();
+    switchPage(0);
+  });
   
   document.getElementsByClassName("cropperCancelButton")[0].addEventListener('click', (event) => {
     switchPage(1);
