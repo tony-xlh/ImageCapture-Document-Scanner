@@ -73,16 +73,42 @@
       stroke-width: 3;
       fill: rgba(0,255,0,0.3);
     }
+
+    .scanner {
+      background: black;
+    }
+
+    .cropper {
+      background: black;
+    }
+
+    .cropperFooter {
+      left: 0;
+      bottom: 0;
+      position: absolute;
+      height: 6em;
+      width: 100%;
+    }
+
+    .okayButton {
+      position: absolute;
+      top: 50%;
+      right: 2em;
+      transform: translate(0, -50%);
+    }
+
+    .cancelButton {
+      position: absolute;
+      top: 50%;
+      left: 2em;
+      transform: translate(0, -50%);
+    }
   </style>
 </head>
 <body>
   <div class="home">
     <select class="cameraSelect"></select>
     <button class="startCameraBtn">Start Camera</button>
-    <br/>
-    <img class="photoTaken" />
-    <br/>
-    <img class="normalized" />
   </div>
   <div class="scanner full" style="display:none;">
     <div class="scannerContent">
@@ -92,17 +118,13 @@
       </svg>
     </div>
     <div class="scannerHeader">
-      <div class="close">
-        <div class="closeButton icon">
-          <img src="cross.svg" alt="close">
-        </div>
+      <div class="closeButton icon">
+        <img src="cross.svg" alt="close">
       </div>
     </div>
     <div class="scannerFooter">
-      <div class="switch">
-        <div class="switchButton icon">
-          <img src="switch.svg" alt="switch">
-        </div>
+      <div class="switchButton icon">
+        <img src="switch.svg" alt="switch">
       </div>
       <div class="shutter">
         <div class="shutterButton"></div>
@@ -113,6 +135,14 @@
   <div class="cropper full" style="display:none;">
     <svg class="cropperSVG full" version="1.1" xmlns="http://www.w3.org/2000/svg">
     </svg>
+    <div class="cropperFooter">
+      <div class="cancelButton icon">
+        <img src="cancel.svg" alt="cancel">
+      </div>
+      <div class="okayButton icon">
+        <img src="okay.svg" alt="okay">
+      </div>
+    </div>
   </div>
   <script>
   const cameraSelect = document.getElementsByClassName("cameraSelect")[0];
@@ -133,9 +163,16 @@
     capture();
   });
   
-  document.getElementsByClassName("closeButton")[0].addEventListener('click', (event) => {
-    stop();
-    stopDetecting();
+  document.getElementsByClassName("cancelButton")[0].addEventListener('click', (event) => {
+    switchPage(0);
+  });
+
+  document.getElementsByClassName("okayButton")[0].addEventListener('click', async (event) => {
+    console.log(img);
+    console.log(detectedQuad);
+    let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
+    document.getElementsByClassName("home")[0].appendChild(imageData.image.toCanvas());
+    console.log(imageData);
     switchPage(0);
   });
 
@@ -150,18 +187,22 @@
     }
     startSelectedCamera();
   });
+
+  document.getElementsByClassName("shutterButton")[0].addEventListener('click', (event) => {
+    capture();
+  });
   
   let ddn;
   let imageCapture;
   let localStream;
   let cameraDevices = [];
-  let dataCanvas;
   let interval;
   let detecting = false;
   let rectSize = 20;
   let selectedRect;
   let detectedQuad;
   let offset;
+  let img;
   window.onload = async function() {
     addEventsForSVG();
     initDDN();
@@ -354,6 +395,7 @@
   }
 
   async function capture(){
+    stopDetecting();
     let cvs;
     if (imageCapture) {
       try {
@@ -366,13 +408,12 @@
       cvs = captureFrame();
     }
     stop();
-    stopDetecting();
     switchPage(2);
     loadPhotoToSVG(cvs);
   }
 
   function loadPhotoToSVG(cvs){
-    let img = new Image();
+    img = new Image();
     img.onload = async function () {
       let svgElement = document.getElementsByClassName("cropperSVG")[0];
       svgElement.innerHTML = "";
