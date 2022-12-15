@@ -170,6 +170,7 @@
   <div class="scanner full" style="display:none;">
     <div class="scannerContent">
       <video class="camera full" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
+      <canvas class="hiddenCVSForFrame" style="display:none"></canvas>
       <canvas class="hiddenCVS" style="display:none"></canvas>
       <svg class="overlay full" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
       </svg>
@@ -299,10 +300,6 @@
       }
     }
     startSelectedCamera();
-  });
-
-  document.getElementsByClassName("shutterButton")[0].addEventListener('click', (event) => {
-    capture();
   });
 
   document.getElementsByClassName("rotateButton")[0].addEventListener('click', (event) => {
@@ -475,10 +472,9 @@
     }
   };
   
-  function captureFrame(){
+  function captureFrame(canvas){
     let w = video.videoWidth;
     let h = video.videoHeight;
-    let canvas = document.getElementsByClassName("hiddenCVS")[0];
     canvas.width  = w;
     canvas.height = h;
     let ctx = canvas.getContext('2d');
@@ -518,7 +514,8 @@
       return;
     }
     detecting = true;
-    let cvs = captureFrame();
+    let canvas = document.getElementsByClassName("hiddenCVSForFrame")[0];
+    let cvs = captureFrame(canvas);
     const quads = await ddn.detectQuad(cvs);
     detecting = false;
     let overlay = document.getElementsByClassName("overlay")[0];
@@ -557,13 +554,16 @@
     let cvs;
     if (imageCapture) {
       try {
-        cvs = await takePhoto();  
+        console.log("take photo");
+        cvs = await takePhoto();
       } catch (error) {
         console.log(error);
-        cvs = captureFrame();  
+        let canvas = document.getElementsByClassName("hiddenCVS")[0];
+        cvs = captureFrame(canvas);  
       }
     }else{
-      cvs = captureFrame();
+      let canvas = document.getElementsByClassName("hiddenCVS")[0];
+      cvs = captureFrame(canvas);
     }
     resetPreviousStatus();
     stop();
