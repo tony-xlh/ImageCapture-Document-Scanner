@@ -82,7 +82,7 @@
       background: black;
     }
 
-    .cropperFooter {
+    .okayCancelFooter {
       left: 0;
       bottom: 0;
       position: absolute;
@@ -90,18 +90,24 @@
       width: 100%;
     }
 
-    .okayButton {
+    .okay {
       position: absolute;
       top: 50%;
       right: 2em;
       transform: translate(0, -50%);
     }
 
-    .cancelButton {
+    .cancel {
       position: absolute;
       top: 50%;
       left: 2em;
       transform: translate(0, -50%);
+    }
+
+    .resultViewer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   </style>
 </head>
@@ -135,11 +141,22 @@
   <div class="cropper full" style="display:none;">
     <svg class="cropperSVG full" version="1.1" xmlns="http://www.w3.org/2000/svg">
     </svg>
-    <div class="cropperFooter">
-      <div class="cancelButton icon">
+    <div class="okayCancelFooter">
+      <div class="cropperCancelButton cancel icon">
         <img src="cancel.svg" alt="cancel">
       </div>
-      <div class="okayButton icon">
+      <div class="cropperOkayButton okay icon">
+        <img src="okay.svg" alt="okay">
+      </div>
+    </div>
+  </div>
+  <div class="resultViewer full" style="display:none;">
+    <img id="normalized" alt="normalized">
+    <div class="okayCancelFooter">
+      <div class="resultViewerCancelButton cancel icon">
+        <img src="cancel.svg" alt="cancel">
+      </div>
+      <div class="resultViewerOkayButton okay icon">
         <img src="okay.svg" alt="okay">
       </div>
     </div>
@@ -163,16 +180,27 @@
     capture();
   });
   
-  document.getElementsByClassName("cancelButton")[0].addEventListener('click', (event) => {
-    switchPage(0);
+  document.getElementsByClassName("cropperCancelButton")[0].addEventListener('click', (event) => {
+    switchPage(1);
+    startSelectedCamera();
   });
 
-  document.getElementsByClassName("okayButton")[0].addEventListener('click', async (event) => {
-    console.log(img);
-    console.log(detectedQuad);
+  document.getElementsByClassName("resultViewerCancelButton")[0].addEventListener('click', (event) => {
+    switchPage(2);
+  });
+
+  document.getElementsByClassName("cropperOkayButton")[0].addEventListener('click', async (event) => {
     let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
-    document.getElementsByClassName("home")[0].appendChild(imageData.image.toCanvas());
-    console.log(imageData);
+    document.getElementById("normalized").src = imageData.image.toCanvas().toDataURL();
+    switchPage(3);
+  });
+
+  document.getElementsByClassName("resultViewerOkayButton")[0].addEventListener('click', (event) => {
+    let container = document.createElement("div");
+    let imgElement = document.createElement("img");
+    imgElement.src = document.getElementById("normalized").src;
+    container.appendChild(imgElement);
+    document.getElementsByClassName("home")[0].appendChild(container);
     switchPage(0);
   });
 
@@ -203,6 +231,7 @@
   let detectedQuad;
   let offset;
   let img;
+  let currentPageIndex = 0;
   window.onload = async function() {
     addEventsForSVG();
     initDDN();
@@ -246,10 +275,12 @@
   }
 
   function switchPage(index) {
+    currentPageIndex = index;
     let home = document.getElementsByClassName("home")[0];
     let scanner = document.getElementsByClassName("scanner")[0];
     let cropper = document.getElementsByClassName("cropper")[0];
-    let pages = [home, scanner, cropper];
+    let resultviewer = document.getElementsByClassName("resultViewer")[0];
+    let pages = [home, scanner, cropper, resultviewer];
     console.log(pages);
     for (let i = 0; i < pages.length; i++) {
       console.log(i);
