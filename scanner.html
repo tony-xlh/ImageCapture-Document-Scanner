@@ -277,6 +277,11 @@
     let imgElement = document.createElement("img");
 
     imgElement.src = document.getElementById("normalized").src;
+
+    if (rotationDegree != 0) {
+      rotateImage(imgElement);
+    }
+
     container.appendChild(imgElement);
     document.getElementsByClassName("home")[0].appendChild(container);
     switchPage(0);
@@ -716,6 +721,28 @@
     }
     console.log(template);
     await ddn.setRuntimeSettings(template);
+  }
+
+  function rotateImage(img){
+    let canvas = document.getElementsByClassName("hiddenCVS")[0];
+    let ctx = canvas.getContext("2d");	
+    // Assign width and height.
+    if (rotationDegree === 180) {
+      canvas.width = img.width;
+      canvas.height = img.height;
+    }else{
+      canvas.width = img.height;
+      canvas.height = img.width;
+    }
+    
+    ctx.translate(canvas.width / 2,canvas.height / 2);
+    // Rotate the image and draw it on the canvas. 
+        // (I am not showing the canvas on the webpage.
+    ctx.rotate(rotationDegree * Math.PI / 180);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    img.src = canvas.toDataURL();
+    console.log("rotate");
+    console.log(img);
   }
   </script>
 </body>
