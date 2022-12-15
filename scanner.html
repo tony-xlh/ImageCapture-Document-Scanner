@@ -160,6 +160,10 @@
       border-radius: 10px;
     }
 
+    #normalized {
+      max-width: 100%;
+    }
+
   </style>
 </head>
 <body>
@@ -721,9 +725,10 @@
     let modes = ["blackWhite","grayscale","color"];
     for (let index = 0; index < modes.length; index++) {
       const mode = modes[index];
+      let canvas = document.getElementsByClassName("hiddenCVS")[0];
       let filterImg = document.querySelector("."+mode+" .filterImg");
       await updateTemplate(mode);
-      let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
+      let imageData = await ddn.normalize(canvas, {quad: detectedQuad.location});
       filterImg.src = imageData.image.toCanvas().toDataURL();  
     }
   }
