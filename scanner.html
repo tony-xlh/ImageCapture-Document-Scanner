@@ -164,12 +164,17 @@
       max-width: 100%;
     }
 
+    .results img {
+      max-width: 100%;
+    }
+
   </style>
 </head>
 <body>
   <div class="home">
     <select class="cameraSelect"></select>
     <button class="startCameraBtn">Start Camera</button>
+    <div class="results"></div>
   </div>
   <div class="scanner full" style="display:none;">
     <div class="scannerContent">
@@ -280,6 +285,7 @@
   });
 
   document.getElementsByClassName("resultViewerOkayButton")[0].addEventListener('click', (event) => {
+    let results = document.getElementsByClassName("results")[0];
     let container = document.createElement("div");
     let imgElement = document.createElement("img");
 
@@ -288,9 +294,8 @@
     if (rotationDegree != 0) {
       rotateImage(imgElement);
     }
-
     container.appendChild(imgElement);
-    document.getElementsByClassName("home")[0].appendChild(container);
+    results.appendChild(container);
     switchPage(0);
   });
 
