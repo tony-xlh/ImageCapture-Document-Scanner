@@ -309,16 +309,20 @@
   });
 
   document.getElementsByClassName("filterButton")[0].addEventListener('click', (event) => {
+    toggleFilterList();
+  });
+
+  function toggleFilterList(hide){
     let filterButton = document.getElementsByClassName("filterButton")[0];
     let filterList = document.getElementsByClassName("filterList")[0];
-    if (filterButton.classList.contains("invert")) {
+    if (filterButton.classList.contains("invert") || hide === true) {
       filterButton.classList.remove("invert");
       filterList.style.display = "none";
     }else{
       filterButton.classList.add("invert");
       filterList.style.display = "";
     }
-  });
+  }
   
   function addEventsForFilterImages() {
     let images = document.getElementsByClassName("filterImg");
@@ -556,10 +560,19 @@
     }else{
       cvs = captureFrame();
     }
-    rotationDegree = 0;
+    resetPreviousStatus();
     stop();
     switchPage(2);
     loadPhotoToSVG(cvs);
+  }
+
+  function resetPreviousStatus(){
+    rotationDegree = 0;
+    document.getElementById("normalized").style.transform = "";
+    if (document.querySelector(".filterImg.selected")) {
+      document.querySelector(".filterImg.selected").classList.remove("selected");
+    }
+    toggleFilterList(true);
   }
 
   function loadPhotoToSVG(cvs){
