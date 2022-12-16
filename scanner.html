@@ -397,6 +397,11 @@
         cameraDevices.push(device);
       }
     }
+    const tracks = stream.getTracks(); // stop the camera to avoid the NotReadableError
+    for (let i=0;i<tracks.length;i++) {
+      const track = tracks[i];
+      track.stop();
+    }
   }
   
   function loadCameraDevicesToSelect(){
