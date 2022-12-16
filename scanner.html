@@ -520,25 +520,31 @@
   function captureFrame(canvas){
     let w = video.videoWidth;
     let h = video.videoHeight;
+    let scaleDownRatio = 1;
+    if (w > 2000 || h > 2000) {
+      w = 1080;
+      h = w * (video.videoHeight/video.videoWidth);
+      scaleDownRatio = w / video.videoWidth;
+    }
+
     canvas.width  = w;
     canvas.height = h;
     let ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, w, h);
-    return canvas;
+    return scaleDownRatio;
   }
   
-  function takePhoto(){
+  function takePhoto(canvas){
     return new Promise(async function (resolve, reject) {
       try {
         let blob = await imageCapture.takePhoto();
         console.log(blob);
         let bitmap = await createImageBitmap(blob);
-        let canvas = document.getElementsByClassName("hiddenCVS")[0];
         canvas.width  = bitmap.width;
         canvas.height = bitmap.height;
         let ctx = canvas.getContext('2d');
         ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
-        resolve(canvas);
+        resolve(true);
       } catch (error) {
         reject(error); //it may not work with virtual cameras
       }
@@ -559,8 +565,8 @@
       return;
     }
     detecting = true;
-    let canvas = document.getElementsByClassName("hiddenCVSForFrame")[0];
-    let cvs = captureFrame(canvas);
+    let cvs = document.getElementsByClassName("hiddenCVSForFrame")[0];
+    let scaleDownRatio = captureFrame(cvs);
     const quads = await ddn.detectQuad(cvs);
     detecting = false;
     let overlay = document.getElementsByClassName("overlay")[0];
@@ -600,15 +606,16 @@
     if (imageCapture) {
       try {
         console.log("take photo");
-        cvs = await takePhoto();
+        cvs = document.getElementsByClassName("hiddenCVS")[0];
+        await takePhoto(cvs);
       } catch (error) {
         console.log(error);
-        let canvas = document.getElementsByClassName("hiddenCVS")[0];
-        cvs = captureFrame(canvas);  
+        cvs = document.getElementsByClassName("hiddenCVS")[0];
+        captureFrame(cvs);  
       }
     }else{
-      let canvas = document.getElementsByClassName("hiddenCVS")[0];
-      cvs = captureFrame(canvas);
+      cvs = document.getElementsByClassName("hiddenCVS")[0];
+      captureFrame(cvs);
     }
     resetPreviousStatus();
     stop();
