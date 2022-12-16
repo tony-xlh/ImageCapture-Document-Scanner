@@ -573,9 +573,21 @@
     if (quads.length>0) {
       let quad = quads[0];
       console.log(quad);
+      if (scaleDownRatio != 1) {
+        scaleQuad(quad,scaleDownRatio);
+      }
       drawOverlay(quad,overlay);
     }else{
       overlay.innerHTML = "";
+    }
+  }
+
+  function scaleQuad(quad,scaleDownRatio){
+    let points = quad.location.points;
+    for (let index = 0; index < points.length; index++) {
+      const point = points[index];
+      point.x = point.x / scaleDownRatio;
+      point.y = point.y / scaleDownRatio;
     }
   }
 
