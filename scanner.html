@@ -380,6 +380,13 @@
     initDDN();
     await loadCameraDevices();
     loadCameraDevicesToSelect();
+    disablePullingOfTheBody();
+  }
+
+  function disablePullingOfTheBody() {
+    document.body.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+    }, {passive: false});
   }
   
   async function initDDN(){
