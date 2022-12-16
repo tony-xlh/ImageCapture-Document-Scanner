@@ -634,7 +634,7 @@
       svgImage.setAttribute("href",img.src);
       svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
       svgElement.appendChild(svgImage);
-      rectSize = 20/(640/img.width);
+      rectSize = 30/(640/img.width);
       let quads = await ddn.detectQuad(cvs);
       console.log(quads);
       if (quads.length>0) {
