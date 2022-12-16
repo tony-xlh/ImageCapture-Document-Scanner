@@ -172,7 +172,16 @@
 </head>
 <body>
   <div class="home">
+    Camera:
     <select class="cameraSelect"></select>
+    <br/>
+    Desired Resolution:
+    <select class="resolutionSelect">
+      <option value="1280x720">1280x720</option>
+      <option value="1920x1080">1920x1080</option>
+      <option value="3840x2160">3840x2160</option>
+    </select>
+    <br/>
     <button class="startCameraBtn">Start Camera</button>
     <div class="results"></div>
   </div>
@@ -246,6 +255,7 @@
   </div>
   <script>
   const cameraSelect = document.getElementsByClassName("cameraSelect")[0];
+  const resolutionSelect = document.getElementsByClassName("resolutionSelect")[0];
   const video = document.querySelector('video');
   video.addEventListener('loadeddata', (event) => {
     console.log("video started");
@@ -368,7 +378,6 @@
   window.onload = async function() {
     addEventsForSVG();
     initDDN();
-    await requestCameraPermission();
     await loadCameraDevices();
     loadCameraDevicesToSelect();
   }
@@ -431,40 +440,55 @@
     if (cameraSelect.selectedIndex != -1) {
       options.deviceId = cameraSelect.selectedOptions[0].value;
     }
+    if (resolutionSelect.selectedIndex != -1) {
+      let width = parseInt(resolutionSelect.selectedOptions[0].value.split("x")[0]);
+      let height = parseInt(resolutionSelect.selectedOptions[0].value.split("x")[1]);
+      let res = {width:width,height:height};
+      options.desiredResolution = res;
+    }
     play(options);
   }
   
   function play(options) {
-    stop(); // close before play
-    let constraints = {};
-  
-    if (options.deviceId){
-      constraints = {
-        video: {deviceId: options.deviceId},
-        audio: false
-      }
-    }else{
-      constraints = {
-        video: true,
-        audio: false
-      }
-    }
-
-
-    navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
-      localStream = stream;
-      // Attach local stream to video element      
-      video.srcObject = stream;
-      if ("ImageCapture" in window) {
-        const track = localStream.getVideoTracks()[0];
-        imageCapture = new ImageCapture(track);
-        console.log("ImageCapture supported");
+    return new Promise(function (resolve, reject) {
+      stop(); // close before play
+      let constraints = {};
+    
+      if (options.deviceId){
+        constraints = {
+          video: {deviceId: options.deviceId},
+          audio: false
+        }
       }else{
-        console.log("ImageCapture not supported");
+        constraints = {
+          video: {width:1280, height:720,facingMode: { exact: "environment" }},
+          audio: false
+        }
       }
-    }).catch(function(err) {
-      console.error('getUserMediaError', err, err.stack);
+      
+      if (options.desiredResolution) {
+        constraints["video"]["width"] = options.desiredResolution.width;
+        constraints["video"]["height"] = options.desiredResolution.height;
+      }
+      console.log(constraints);
+      navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+        localStream = stream;
+        // Attach local stream to video element
+        video.srcObject = stream;
+        if ("ImageCapture" in window) {
+          console.log("ImageCapture supported");
+          const track = localStream.getVideoTracks()[0];
+          imageCapture = new ImageCapture(track);
+        }else{
+          console.log("ImageCapture not supported");
+        }
+        resolve(true);
+      }).catch(function(err) {
+        console.error('getUserMediaError', err, err.stack);
+        reject(err);
+      });
     });
+    
   }
   
   function stop() {
@@ -731,6 +755,8 @@
     for (let index = 0; index < modes.length; index++) {
       const mode = modes[index];
       let canvas = document.getElementsByClassName("hiddenCVS")[0];
+      console.log(img.naturalWidth);
+      console.log(img.naturalHeight);
       let filterImg = document.querySelector("."+mode+" .filterImg");
       await updateTemplate(mode);
       let imageData = await ddn.normalize(canvas, {quad: detectedQuad.location});
@@ -751,26 +777,26 @@
     await ddn.setRuntimeSettings(template);
   }
 
-  function rotateImage(img){
+  function rotateImage(imgElement){
     let canvas = document.getElementsByClassName("hiddenCVS")[0];
     let ctx = canvas.getContext("2d");	
     // Assign width and height.
     if (rotationDegree === -180) {
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = imgElement.width;
+      canvas.height = imgElement.height;
     }else{
-      canvas.width = img.height;
-      canvas.height = img.width;
+      canvas.width = imgElement.height;
+      canvas.height = imgElement.width;
     }
     
     ctx.translate(canvas.width / 2,canvas.height / 2);
     // Rotate the image and draw it on the canvas. 
         // (I am not showing the canvas on the webpage.
     ctx.rotate(rotationDegree * Math.PI / 180);
-    ctx.drawImage(img, -img.width / 2, -img.height / 2);
-    img.src = canvas.toDataURL();
+    ctx.drawImage(imgElement, -imgElement.width / 2, -imgElement.height / 2);
+    imgElement.src = canvas.toDataURL();
     console.log("rotate");
-    console.log(img);
+    console.log(imgElement);
   }
   </script>
 </body>
