@@ -7,6 +7,7 @@
   <!--<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>-->
   <script src="https://cdn.jsdelivr.net/npm/dynamsoft-document-normalizer@1.0.11/dist/ddn.js"></script>
+  <script src="assets/utils.js"></script>
   <style>
     .full {
       position: absolute;
@@ -432,6 +433,7 @@
   let img;
   let currentPageIndex = 0;
   let rotationDegree = 0;
+  let previousResults = [];
   window.onload = async function() {
     addEventsForSVG();
     initDDN();
@@ -612,10 +614,12 @@
 
   function startDetecting(){
     detecting = false;
+    previousResults = [];
     interval = setInterval(detect,200);
   }
 
   function stopDetecting(){
+    previousResults = [];
     clearInterval(interval);
   }
 
@@ -636,8 +640,41 @@
         scaleQuad(quad,scaleDownRatio);
       }
       drawOverlay(quad,overlay);
+      if (document.getElementsByClassName("autoCaptureButton")[0].classList.contains("enabled")) {
+        autoCapture(quad);
+      }
     }else{
       overlay.innerHTML = "";
+    }
+  }
+
+  async function autoCapture(points){
+    if (previousResults.length >= 2) {
+      previousResults.push(points)
+      if (steady() == true) {
+        console.log("steady");
+        await capture();
+      }else{
+        console.log("shift result");
+        previousResults.shift();
+      }
+    }else{
+      console.log("add result");
+      previousResults.push(points);
+    }
+  }
+
+  function steady() {
+    let iou1 = intersectionOverUnion(previousResults[0].location.points,previousResults[1].location.points);
+    let iou2 = intersectionOverUnion(previousResults[1].location.points,previousResults[2].location.points);
+    let iou3 = intersectionOverUnion(previousResults[0].location.points,previousResults[2].location.points);
+    console.log(iou1);
+    console.log(iou2);
+    console.log(iou3);
+    if (iou1>0.9 && iou2>0.9 && iou3>0.9) {
+      return true;
+    }else{
+      return false;
     }
   }
 
