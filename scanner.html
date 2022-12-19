@@ -346,6 +346,25 @@
     startSelectedCamera();
   });
 
+  document.getElementsByClassName("flashButton")[0].addEventListener('click', async (event) => {
+    let flashButton = document.getElementsByClassName("flashButton")[0];
+    if (flashButton.classList.contains("invert")) {
+      flashButton.classList.remove("invert");
+      try {
+        await localStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:false}]})  
+      } catch (error) {
+        console.log(error);
+      }
+    } else {
+      flashButton.classList.add("invert");
+      try {
+        await localStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:true}]})  
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  });
+
   document.getElementsByClassName("rotateButton")[0].addEventListener('click', (event) => {
     rotationDegree = rotationDegree - 90;
     if (rotationDegree === -360) {
@@ -504,7 +523,16 @@
       navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
         localStream = stream;
         // Attach local stream to video element
+        
         video.srcObject = stream;
+        
+        if (localStream.getVideoTracks()[0].getCapabilities().torch === true) {
+          console.log("torch supported");
+          document.getElementsByClassName("flashButton")[0].style.display = "";
+        }else{
+          document.getElementsByClassName("flashButton")[0].style.display = "none";
+        }
+
         if ("ImageCapture" in window) {
           console.log("ImageCapture supported");
           const track = localStream.getVideoTracks()[0];
