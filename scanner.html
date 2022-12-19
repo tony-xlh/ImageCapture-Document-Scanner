@@ -160,6 +160,10 @@
       border-radius: 10px;
     }
 
+    .enabled {
+      filter: sepia(100%) saturate(100) hue-rotate(1400deg);
+    }
+
     #normalized {
       max-width: 100%;
     }
@@ -362,6 +366,15 @@
       } catch (error) {
         console.log(error);
       }
+    }
+  });
+
+  document.getElementsByClassName("autoCaptureButton")[0].addEventListener('click', async (event) => {
+    let autoCaptureButton = document.getElementsByClassName("autoCaptureButton")[0];
+    if (autoCaptureButton.classList.contains("enabled")) {
+      autoCaptureButton.classList.remove("enabled");
+    } else {
+      autoCaptureButton.classList.add("enabled");
     }
   });
 
