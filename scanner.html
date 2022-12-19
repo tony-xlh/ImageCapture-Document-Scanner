@@ -306,6 +306,7 @@
   document.getElementsByClassName("closeButton")[0].addEventListener('click', (event) => {
     stopDetecting();
     stop();
+    resetPreviousStatus();
     switchPage(0);
   });
   
@@ -615,7 +616,7 @@
   function startDetecting(){
     detecting = false;
     previousResults = [];
-    interval = setInterval(detect,200);
+    interval = setInterval(detect,300);
   }
 
   function stopDetecting(){
@@ -734,6 +735,10 @@
   function resetPreviousStatus(){
     rotationDegree = 0;
     document.getElementById("normalized").style.transform = "";
+    document.getElementsByClassName("flashButton")[0].classList.remove("invert");
+    if (document.querySelector(".filterImg.selected")) {
+      document.querySelector(".filterImg.selected").classList.remove("selected");
+    }
     if (document.querySelector(".filterImg.selected")) {
       document.querySelector(".filterImg.selected").classList.remove("selected");
     }
