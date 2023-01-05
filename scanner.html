@@ -630,7 +630,9 @@
   }
 
   function captureFullFrame(img){
-    img.src = URL.createObjectURL(video);
+    let cvs = document.getElementsByClassName("hiddenCVS")[0];
+    captureFrame(cvs);
+    img.src = cvs.toDataURL();
   }
   
   function takePhoto(img){
