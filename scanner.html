@@ -234,6 +234,7 @@
       <video class="camera full" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
       <canvas class="hiddenCVSForFrame" style="display:none"></canvas>
       <canvas class="hiddenCVS" style="display:none"></canvas>
+      <img class="imageCaptured" style="display:none"/>
       <svg class="overlay full" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
       </svg>
     </div>
@@ -462,7 +463,6 @@
   let selectedRect;
   let detectedQuad;
   let offset;
-  let img;
   let currentPageIndex = 0;
   let rotationDegree = 0;
   let previousResults = [];
@@ -476,6 +476,7 @@
   async function initDDN(){
     Dynamsoft.DDN.DocumentNormalizer.license = "DLS2eyJoYW5kc2hha2VDb2RlIjoiMjM0ODEwLTE2NTMzNTY5NzQ0ODMiLCJvcmdhbml6YXRpb25JRCI6IjIzNDgxMCJ9";
     ddn = await Dynamsoft.DDN.DocumentNormalizer.createInstance();
+    ddn.maxCvsSideLength = 9999;
   }
   
   async function loadCameraDevices(){
@@ -626,17 +627,16 @@
     ctx.drawImage(video, 0, 0, w, h);
     return scaleDownRatio;
   }
+
+  function captureFullFrame(img){
+    img.src = URL.createObjectURL(video);
+  }
   
-  function takePhoto(canvas){
+  function takePhoto(img){
     return new Promise(async function (resolve, reject) {
       try {
         let blob = await imageCapture.takePhoto();
-        console.log(blob);
-        let bitmap = await createImageBitmap(blob);
-        canvas.width  = bitmap.width;
-        canvas.height = bitmap.height;
-        let ctx = canvas.getContext('2d');
-        ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
+        img.src = URL.createObjectURL(blob);
         resolve(true);
       } catch (error) {
         reject(error); //it may not work with virtual cameras
@@ -743,26 +743,28 @@
   async function capture() {
     stopDetecting();
     toggleStatusMask("Taking a photo...");
-    let cvs;
+    let imageCaptured = document.getElementsByClassName("imageCaptured")[0];
+
+    imageCaptured.onload = function(){
+      loadPhotoToSVG(imageCaptured);
+    }
+
     if (imageCapture) {
       try {
         console.log("take photo");
-        cvs = document.getElementsByClassName("hiddenCVS")[0];
-        await takePhoto(cvs);
+        await takePhoto(imageCaptured);
       } catch (error) {
         console.log(error);
-        cvs = document.getElementsByClassName("hiddenCVS")[0];
-        captureFrame(cvs);  
+        captureFullFrame(imageCaptured);  
       }
     }else{
-      cvs = document.getElementsByClassName("hiddenCVS")[0];
-      captureFrame(cvs);
+      captureFullFrame(imageCaptured);
     }
+    
     toggleStatusMask("");
     resetPreviousStatus();
     stop();
     switchPage(2);
-    loadPhotoToSVG(cvs);
   }
 
   function resetPreviousStatus(){
@@ -778,28 +780,24 @@
     toggleFilterList(true);
   }
 
-  function loadPhotoToSVG(cvs){
-    img = new Image();
-    img.onload = async function () {
-      let svgElement = document.getElementsByClassName("cropperSVG")[0];
-      svgElement.innerHTML = "";
-      let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
-      svgImage.setAttribute("href",img.src);
-      svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
-      svgElement.appendChild(svgImage);
-      rectSize = 30/(640/img.width);
-      toggleStatusMask("Detecting...");
-      let quads = await ddn.detectQuad(cvs);
-      toggleStatusMask("");
-      console.log(quads);
-      if (quads.length>0) {
-        detectedQuad = quads[0];
-        let svg = document.getElementsByClassName("cropperSVG")[0];
-        drawOverlay(quads[0],svg);
-        drawRects(quads[0],svg);
-      }
+  async function loadPhotoToSVG(img){
+    let svgElement = document.getElementsByClassName("cropperSVG")[0];
+    svgElement.innerHTML = "";
+    let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    svgImage.setAttribute("href",img.src);
+    svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
+    svgElement.appendChild(svgImage);
+    rectSize = 30/(640/img.width);
+    toggleStatusMask("Detecting...");
+    let quads = await ddn.detectQuad(img);
+    toggleStatusMask("");
+    console.log(quads);
+    if (quads.length>0) {
+      detectedQuad = quads[0];
+      let svg = document.getElementsByClassName("cropperSVG")[0];
+      drawOverlay(quads[0],svg);
+      drawRects(quads[0],svg);
     }
-    img.src = cvs.toDataURL();
   }
 
   function drawRects(quad,svg){
@@ -922,12 +920,12 @@
     toggleStatusMask("Normalizing...");
     for (let index = 0; index < modes.length; index++) {
       const mode = modes[index];
-      let canvas = document.getElementsByClassName("hiddenCVS")[0];
+      let img = document.getElementsByClassName("imageCaptured")[0];
       console.log(img.naturalWidth);
       console.log(img.naturalHeight);
       let filterImg = document.querySelector("."+mode+" .filterImg");
       await updateTemplate(mode);
-      let imageData = await ddn.normalize(canvas, {quad: detectedQuad.location});
+      let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
       filterImg.src = imageData.image.toCanvas().toDataURL();  
     }
     toggleStatusMask("");
