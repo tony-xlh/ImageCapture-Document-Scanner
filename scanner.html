@@ -611,16 +611,17 @@
     }
   };
   
-  function captureFrame(canvas){
+  function captureFrame(canvas,enableScale){
     let w = video.videoWidth;
     let h = video.videoHeight;
     let scaleDownRatio = 1;
-    if (w > 2000 || h > 2000) {
-      w = 1080;
-      h = w * (video.videoHeight/video.videoWidth);
-      scaleDownRatio = w / video.videoWidth;
+    if (enableScale === true) {
+      if (w > 2000 || h > 2000) {
+        w = 1080;
+        h = w * (video.videoHeight/video.videoWidth);
+        scaleDownRatio = w / video.videoWidth;
+      }
     }
-
     canvas.width  = w;
     canvas.height = h;
     let ctx = canvas.getContext('2d');
@@ -661,7 +662,7 @@
     }
     detecting = true;
     let cvs = document.getElementsByClassName("hiddenCVSForFrame")[0];
-    let scaleDownRatio = captureFrame(cvs);
+    let scaleDownRatio = captureFrame(cvs,true);
     const quads = await ddn.detectQuad(cvs);
     detecting = false;
     let overlay = document.getElementsByClassName("overlay")[0];
