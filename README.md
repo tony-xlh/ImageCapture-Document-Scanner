@@ -4,6 +4,6 @@ A Web document scanner demo using [Dynamsoft Document Normalizer](https://www.dy
 
 [Online demo](https://tony-xlh.github.io/ImageCapture-Document-Scanner/scanner.html)
 
-[Demo video](https://user-images.githubusercontent.com/5462205/208365115-bc1eb987-df68-4052-9368-ba0a9f61a739.mp4)
+[Demo video](https://user-images.githubusercontent.com/5462205/210918076-c23f1ac3-6f56-4698-b1ae-b570f5b4f632.mp4)
 
 
