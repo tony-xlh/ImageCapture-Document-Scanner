@@ -343,8 +343,10 @@
   });
 
   document.getElementsByClassName("cropperOkayButton")[0].addEventListener('click', async (event) => {
-    await loadFilterImages();
-    document.getElementById("normalized").src = document.querySelector(".color .filterImg").src;
+    toggleStatusMask("Normalizing...");
+    await loadNormalizedAndFilterImages();
+    document.getElementById("normalized").src = document.querySelector(".color .filterImg").normalizedImage;
+    toggleStatusMask("");
     switchPage(3);
   });
 
@@ -437,15 +439,25 @@
   }
   
   function addEventsForFilterImages() {
+    let modes = ["blackWhite","grayscale","color"];
     let images = document.getElementsByClassName("filterImg");
     for (let i = 0; i < images.length; i++) {
       const imgElement = images[i];
-      imgElement.addEventListener('click', (event) => {
+      imgElement.addEventListener('click', async (event) => {
         for (let j = 0; j < images.length; j++) {
           images[j].classList.remove("selected");
         }
         imgElement.classList.add("selected");
-        document.getElementById("normalized").src = imgElement.src;
+        if (!imgElement.normalizedImage) {
+          toggleStatusMask("Normalizing...");
+          const mode = modes[i];
+          await updateTemplate(mode);
+          let img = document.getElementsByClassName("imageCaptured")[0];
+          let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
+          imgElement.normalizedImage = imageData.image.toCanvas().toDataURL();
+          toggleStatusMask("");
+        }
+        document.getElementById("normalized").src = imgElement.normalizedImage;
       }); 
     }
   }
@@ -713,12 +725,23 @@
     }
   }
 
+  function replicatedScaledQuad(quad,scaleDownRatio){
+    let newQuad = JSON.parse(JSON.stringify(quad));
+    let points = newQuad.location.points;
+    for (let index = 0; index < points.length; index++) {
+      const point = points[index];
+      point.x = parseInt(point.x * scaleDownRatio);
+      point.y = parseInt(point.y * scaleDownRatio);
+    }
+    return newQuad;
+  }
+
   function scaleQuad(quad,scaleDownRatio){
     let points = quad.location.points;
     for (let index = 0; index < points.length; index++) {
       const point = points[index];
-      point.x = point.x / scaleDownRatio;
-      point.y = point.y / scaleDownRatio;
+      point.x = parseInt(point.x / scaleDownRatio);
+      point.y = parseInt(point.y / scaleDownRatio);
     }
   }
 
@@ -918,20 +941,39 @@
     }
   }
 
-  async function loadFilterImages(){
+  async function loadNormalizedAndFilterImages(){
     let modes = ["blackWhite","grayscale","color"];
-    toggleStatusMask("Normalizing...");
+    let img = document.getElementsByClassName("imageCaptured")[0];
+    let cvs = document.getElementsByClassName("hiddenCVS")[0];
+    let ratio = drawResizedThumbnailImageToCanvas(img,cvs);
+    let scaledQuad = replicatedScaledQuad(detectedQuad,ratio);
+    console.log(detectedQuad);
+    console.log(scaledQuad);
     for (let index = 0; index < modes.length; index++) {
       const mode = modes[index];
-      let img = document.getElementsByClassName("imageCaptured")[0];
-      console.log(img.naturalWidth);
-      console.log(img.naturalHeight);
       let filterImg = document.querySelector("."+mode+" .filterImg");
       await updateTemplate(mode);
-      let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
-      filterImg.src = imageData.image.toCanvas().toDataURL();  
+      let imageData = await ddn.normalize(cvs, {quad: scaledQuad.location});
+      filterImg.src = imageData.image.toCanvas().toDataURL(); 
+      if (mode === "color" ) {
+        imageData = await ddn.normalize(img, {quad: detectedQuad.location})
+        filterImg.normalizedImage = imageData.image.toCanvas().toDataURL();
+      }
     }
-    toggleStatusMask("");
+  }
+
+  function drawResizedThumbnailImageToCanvas(img,cvs){
+    let w = 128;
+    let h = w * (img.naturalHeight/img.naturalWidth);
+    let scaleDownRatio = w / img.naturalWidth;
+    cvs.width  = w;
+    cvs.height = h;
+    console.log(w);
+    console.log(h);
+    console.log(scaleDownRatio);
+    let ctx = cvs.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    return scaleDownRatio;
   }
 
   async function updateTemplate(mode){
