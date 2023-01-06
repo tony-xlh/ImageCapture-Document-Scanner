@@ -591,13 +591,17 @@
         
         video.srcObject = stream;
         
-        if (localStream.getVideoTracks()[0].getCapabilities().torch === true) {
-          console.log("torch supported");
-          document.getElementsByClassName("flashButton")[0].style.display = "";
-        }else{
+        try {
+          if (localStream.getVideoTracks()[0].getCapabilities().torch === true) {
+            console.log("torch supported");
+            document.getElementsByClassName("flashButton")[0].style.display = "";
+          }else{
+            document.getElementsByClassName("flashButton")[0].style.display = "none";
+          }  
+        } catch (error) {
           document.getElementsByClassName("flashButton")[0].style.display = "none";
         }
-
+        
         if ("ImageCapture" in window) {
           console.log("ImageCapture supported");
           const track = localStream.getVideoTracks()[0];
