@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Scanner</title>
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script>
+  <script src="https://cdn.jsdelivr.net/npm/dynamsoft-document-normalizer@1.0.11/dist/ddn.js"></script>
+  <script src="assets/utils.js"></script>
+  <style>
+    .full {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .scannerFooter {
+      left: 0;
+      bottom: 0;
+      position: absolute;
+      height: 6em;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      flex-direction: row;
+      justify-content: space-evenly;
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .icon {
+      width: 2.5em;
+      height: 2.5em;
+      pointer-events: all;
+      cursor: pointer;
+    }
+
+    .shutter {
+      width: 4em;
+      height: 4em;
+      margin-top: calc(var(--shutter-size) / -2);
+      margin-left: calc(var(--shutter-size) / -2);
+      border-radius: 100%;
+      background-color: rgb(198, 205, 216);
+      padding: 12px;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    .shutterButton {
+      background-color: rgb(255, 255, 255);
+      border-radius: 100%;
+      width: 100%;
+      height: 100%;
+    }
+
+    .shutterButton:active {
+      background-color: rgb(220, 220, 220);
+      border-radius: 100%;
+      width: 100%;
+      height: 100%;
+    }
+
+    .detectedPolygon {
+      stroke:green;
+      stroke-width: 2;
+      fill:lime;
+      opacity: 0.3;
+    }
+
+    .vertice {
+      stroke:darkgreen;
+      stroke-width: 3;
+      fill: rgba(0,255,0,0.3);
+    }
+
+    .scanner {
+      background: black;
+    }
+
+    .cropper {
+      background: black;
+    }
+
+    .okayCancelFooter {
+      left: 0;
+      bottom: 0;
+      position: absolute;
+      height: 6em;
+      width: 100%;
+      pointer-events: none;
+    }
+
+    .okay {
+      position: absolute;
+      top: 50%;
+      right: 2em;
+      transform: translate(0, -50%);
+    }
+
+    .cancel {
+      position: absolute;
+      top: 50%;
+      left: 2em;
+      transform: translate(0, -50%);
+    }
+
+    .toolbar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 3em;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+    }
+
+    .filterList {
+      position: absolute;
+      top: 3em;
+      left: 0;
+      height: 4em;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+    }
+
+    .filterImg {
+      display: block;
+      margin: 0 auto;
+      height: 2.5em;
+    }
+
+    .filterImg.selected {
+      border: 1px solid #fe8e14;
+    } 
+
+    .filterItem {
+      margin-left: 1em;
+    }
+
+    .filterLabel {
+      text-align:center;
+      color:white;
+      height: 1em;
+    }
+
+    .invert {
+      filter:invert(1);
+      background: black;
+      border-radius: 10px;
+    }
+
+    .enabled {
+      filter: sepia(100%) saturate(100) hue-rotate(1400deg);
+    }
+
+    #normalized {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .results img {
+      max-width: 100%;
+    }
+
+    body {
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      margin-left: 0;
+      margin-right: 0;
+      margin-top: 0;
+      margin-bottom: 0;
+      padding-left: 0;
+      padding-right: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+
+    .home {
+      overflow: auto;
+      height: 100%;
+      text-align: center;
+    }
+
+    .mask {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .status {
+      color:white;
+    }
+
+    .imageContainer {
+      overflow: auto;
+      width: 100%;
+      height: calc(100% - 3em);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      left: 0;
+      top: 3em;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="home">
+    <h2>Document Scanner Demo</h2>
+
+    Camera:
+    <select class="cameraSelect"></select>
+    <br/>
+    Desired Resolution:
+    <select class="resolutionSelect">
+      <option value="1280x720">1280x720</option>
+      <option value="1920x1080">1920x1080</option>
+      <option value="3840x2160">3840x2160</option>
+    </select>
+    <br/>
+    <button class="startCameraBtn">Start Camera</button>
+    <div class="results"></div>
+  </div>
+  <div class="scanner full" style="display:none;">
+    <div class="scannerContent">
+      <video class="camera full" muted autoplay="autoplay" playsinline="playsinline" webkit-playsinline></video>
+      <canvas class="hiddenCVSForFrame" style="display:none"></canvas>
+      <canvas class="hiddenCVS" style="display:none"></canvas>
+      <img class="imageCaptured" style="display:none"/>
+      <svg class="overlay full" version="1.1" xmlns="http://www.w3.org/2000/svg"> 
+      </svg>
+    </div>
+    <div class="scannerHeader toolbar" style="justify-content: space-between;">
+      <div class="closeButton">
+        <img class="icon" src="assets/cross.svg" alt="close"/>
+      </div>
+      <div class="flashButton">
+        <img class="icon" src="assets/flash.svg" alt="flash"/>
+      </div>
+    </div>
+    <div class="scannerFooter">
+      <div class="switchButton">
+        <img class="icon" src="assets/switch.svg" alt="switch"/>
+      </div>
+      <div class="shutter">
+        <div class="shutterButton"></div>
+      </div>
+      <div class="autoCaptureButton">
+        <img class="icon" src="assets/auto-photo.svg" alt="auto"/>
+      </div>
+    </div>
+  </div>
+  <div class="cropper full" style="display:none;">
+    <svg class="cropperSVG full" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    </svg>
+    <div class="okayCancelFooter">
+      <div class="cropperCancelButton cancel">
+        <img class="icon" src="assets/cancel.svg" alt="cancel"/>
+      </div>
+      <div class="cropperOkayButton okay icon">
+        <img class="icon" src="assets/okay.svg" alt="okay"/>
+      </div>
+    </div>
+  </div>
+  <div class="resultViewer full" style="display:none;">
+    <div class="imageContainer">
+      <img id="normalized" alt="normalized">
+    </div>
+    <div class="toolbar">
+      <div class="rotateButton">
+        <img class="icon" src="assets/rotate-counter-clockwise.svg" alt="rotate"/>
+      </div>
+      <div class="filterButton">
+        <img class="icon" src="assets/color-filter.svg" alt="color-filter"/>
+      </div>
+    </div>
+    <div class="filterList" style="display:none;">
+      <div class="blackWhite filterItem">
+        <img class="filterImg" alt="blackwhite"/>
+        <div class="filterLabel">B&W</div>
+      </div>
+      <div class="grayscale filterItem">
+        <img class="filterImg" alt="grayscale"/>
+        <div class="filterLabel">Grayscale</div>
+      </div>
+      <div class="color filterItem">
+        <img class="filterImg" alt="color"/>
+        <div class="filterLabel">Color</div>
+      </div>
+    </div>
+    <div class="okayCancelFooter">
+      <div class="resultViewerCancelButton cancel">
+        <img class="icon" src="assets/cancel.svg" alt="cancel"/>
+      </div>
+      <div class="resultViewerOkayButton okay">
+        <img class="icon" src="assets/okay.svg" alt="okay"/>
+      </div>
+    </div>
+  </div>
+  <div class="mask" style="display:none;">
+    <div class="status"></div>
+  </div>
+  <script>
+  const cameraSelect = document.getElementsByClassName("cameraSelect")[0];
+  const resolutionSelect = document.getElementsByClassName("resolutionSelect")[0];
+  const video = document.querySelector('video');
+  video.addEventListener('loadeddata', (event) => {
+    console.log("video started");
+    document.getElementsByClassName("overlay")[0].setAttribute("viewBox","0 0 "+video.videoWidth+" "+video.videoHeight);
+    startDetecting();
+  });
+  
+  document.getElementsByClassName("startCameraBtn")[0].addEventListener('click', (event) => {
+    console.log("start camera");
+    switchPage(1);
+    startSelectedCamera();
+  });
+
+  document.getElementsByClassName("shutterButton")[0].addEventListener('click', (event) => {
+    capture();
+  });
+
+  document.getElementsByClassName("closeButton")[0].addEventListener('click', (event) => {
+    stopDetecting();
+    stop();
+    resetPreviousStatus();
+    switchPage(0);
+  });
+  
+  document.getElementsByClassName("cropperCancelButton")[0].addEventListener('click', (event) => {
+    switchPage(1);
+    startSelectedCamera();
+  });
+
+  document.getElementsByClassName("resultViewerCancelButton")[0].addEventListener('click', (event) => {
+    switchPage(2);
+  });
+
+  document.getElementsByClassName("cropperOkayButton")[0].addEventListener('click', async (event) => {
+    toggleStatusMask("Normalizing...");
+    await loadNormalizedAndFilterImages();
+    document.getElementById("normalized").src = document.querySelector(".color .filterImg").normalizedImage;
+    toggleStatusMask("");
+    switchPage(3);
+  });
+
+  document.getElementsByClassName("resultViewerOkayButton")[0].addEventListener('click', (event) => {
+    let results = document.getElementsByClassName("results")[0];
+    let container = document.createElement("div");
+    let imgElement = document.createElement("img");
+
+    imgElement.src = document.getElementById("normalized").src;
+
+    if (rotationDegree != 0) {
+      rotateImage(imgElement);
+    }
+    container.appendChild(imgElement);
+    results.appendChild(container);
+    switchPage(0);
+  });
+
+  document.getElementsByClassName("switchButton")[0].addEventListener('click', (event) => {
+    console.log("switch camera");
+    if (cameraSelect.options.length>1) {
+      if (cameraSelect.selectedIndex < cameraSelect.length - 1) {
+        cameraSelect.selectedIndex = cameraSelect.selectedIndex + 1;
+      }else{
+        cameraSelect.selectedIndex = 0;
+      }
+    }
+    startSelectedCamera();
+  });
+
+  document.getElementsByClassName("flashButton")[0].addEventListener('click', async (event) => {
+    let flashButton = document.getElementsByClassName("flashButton")[0];
+    if (flashButton.classList.contains("invert")) {
+      flashButton.classList.remove("invert");
+      try {
+        await localStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:false}]})  
+      } catch (error) {
+        console.log(error);
+      }
+    } else {
+      flashButton.classList.add("invert");
+      try {
+        await localStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:true}]})  
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  });
+
+  document.getElementsByClassName("autoCaptureButton")[0].addEventListener('click', async (event) => {
+    let autoCaptureButton = document.getElementsByClassName("autoCaptureButton")[0];
+    if (autoCaptureButton.classList.contains("enabled")) {
+      autoCaptureButton.classList.remove("enabled");
+    } else {
+      autoCaptureButton.classList.add("enabled");
+    }
+  });
+
+  document.getElementsByClassName("rotateButton")[0].addEventListener('click', (event) => {
+    rotationDegree = rotationDegree - 90;
+    if (rotationDegree === -360) {
+      rotationDegree = 0;
+    }
+    document.getElementById("normalized").style.transform = "rotate("+rotationDegree+"deg)";
+  });
+
+  document.getElementsByClassName("filterButton")[0].addEventListener('click', (event) => {
+    toggleFilterList();
+  });
+
+  function toggleStatusMask(text){
+    if (text) {
+      document.getElementsByClassName("mask")[0].style.display = "";
+      document.getElementsByClassName("status")[0].innerHTML = text;
+    }else{
+      document.getElementsByClassName("mask")[0].style.display = "none";
+    }
+  }
+
+  function toggleFilterList(hide){
+    let filterButton = document.getElementsByClassName("filterButton")[0];
+    let filterList = document.getElementsByClassName("filterList")[0];
+    if (filterButton.classList.contains("invert") || hide === true) {
+      filterButton.classList.remove("invert");
+      filterList.style.display = "none";
+    }else{
+      filterButton.classList.add("invert");
+      filterList.style.display = "";
+    }
+  }
+  
+  function addEventsForFilterImages() {
+    let modes = ["blackWhite","grayscale","color"];
+    let images = document.getElementsByClassName("filterImg");
+    for (let i = 0; i < images.length; i++) {
+      const imgElement = images[i];
+      imgElement.addEventListener('click', async (event) => {
+        for (let j = 0; j < images.length; j++) {
+          images[j].classList.remove("selected");
+        }
+        imgElement.classList.add("selected");
+        if (!imgElement.normalizedImage) {
+          toggleStatusMask("Normalizing...");
+          const mode = modes[i];
+          await updateTemplate(mode);
+          let img = document.getElementsByClassName("imageCaptured")[0];
+          let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
+          imgElement.normalizedImage = imageData.image.toCanvas().toDataURL();
+          toggleStatusMask("");
+        }
+        document.getElementById("normalized").src = imgElement.normalizedImage;
+      }); 
+    }
+  }
+
+  addEventsForFilterImages();
+  
+  
+  let ddn;
+  let imageCapture;
+  let localStream;
+  let cameraDevices = [];
+  let interval;
+  let detecting = false;
+  let rectSize = 20;
+  let selectedRect;
+  let detectedQuad;
+  let offset;
+  let currentPageIndex = 0;
+  let rotationDegree = 0;
+  let previousResults = [];
+  window.onload = async function() {
+    addEventsForSVG();
+    initDDN();
+    await loadCameraDevices();
+    loadCameraDevicesToSelect();
+  }
+  
+  async function initDDN(){
+    Dynamsoft.DDN.DocumentNormalizer.license = "DLS2eyJoYW5kc2hha2VDb2RlIjoiMjM0ODEwLTE2NTMzNTY5NzQ0ODMiLCJvcmdhbml6YXRpb25JRCI6IjIzNDgxMCJ9";
+    ddn = await Dynamsoft.DDN.DocumentNormalizer.createInstance();
+    ddn.maxCvsSideLength = 9999;
+  }
+  
+  async function loadCameraDevices(){
+    const constraints = {video: true, audio: false};
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    for (let i=0;i<devices.length;i++){
+      let device = devices[i];
+      if (device.kind == 'videoinput'){ // filter out audio devices
+        cameraDevices.push(device);
+      }
+    }
+    const tracks = stream.getTracks(); // stop the camera to avoid the NotReadableError
+    for (let i=0;i<tracks.length;i++) {
+      const track = tracks[i];
+      track.stop();
+    }
+  }
+  
+  function loadCameraDevicesToSelect(){
+    for (let i=0;i<cameraDevices.length;i++){
+      let device = cameraDevices[i];
+      cameraSelect.appendChild(new Option(device.label,device.deviceId))
+    }
+  }
+  
+  async function requestCameraPermission() {
+    const constraints = {video: true, audio: false};
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const tracks = stream.getTracks();
+    for (let i=0;i<tracks.length;i++) {
+      const track = tracks[i];
+      track.stop();  // stop the opened camera
+    }
+  }
+
+  function switchPage(index) {
+    currentPageIndex = index;
+    let home = document.getElementsByClassName("home")[0];
+    let scanner = document.getElementsByClassName("scanner")[0];
+    let cropper = document.getElementsByClassName("cropper")[0];
+    let resultviewer = document.getElementsByClassName("resultViewer")[0];
+    let pages = [home, scanner, cropper, resultviewer];
+    console.log(pages);
+    for (let i = 0; i < pages.length; i++) {
+      console.log(i);
+      const page = pages[i];
+      if (i === index) {
+        page.style.display = "";
+      } else {
+        page.style.display = "none";
+      }
+    }
+  }
+
+  function startSelectedCamera(){
+    let options = {};
+    if (cameraSelect.selectedIndex != -1) {
+      options.deviceId = cameraSelect.selectedOptions[0].value;
+    }
+    if (resolutionSelect.selectedIndex != -1) {
+      let width = parseInt(resolutionSelect.selectedOptions[0].value.split("x")[0]);
+      let height = parseInt(resolutionSelect.selectedOptions[0].value.split("x")[1]);
+      let res = {width:width,height:height};
+      options.desiredResolution = res;
+    }
+    play(options);
+  }
+  
+  function play(options) {
+    return new Promise(function (resolve, reject) {
+      stop(); // close before play
+      let constraints = {};
+    
+      if (options.deviceId){
+        constraints = {
+          video: {deviceId: options.deviceId},
+          audio: false
+        }
+      }else{
+        constraints = {
+          video: {width:1280, height:720,facingMode: { exact: "environment" }},
+          audio: false
+        }
+      }
+      
+      if (options.desiredResolution) {
+        constraints["video"]["width"] = options.desiredResolution.width;
+        constraints["video"]["height"] = options.desiredResolution.height;
+      }
+      console.log(constraints);
+      navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+        localStream = stream;
+        // Attach local stream to video element
+        
+        video.srcObject = stream;
+        
+        try {
+          if (localStream.getVideoTracks()[0].getCapabilities().torch === true) {
+            console.log("torch supported");
+            document.getElementsByClassName("flashButton")[0].style.display = "";
+          }else{
+            document.getElementsByClassName("flashButton")[0].style.display = "none";
+          }  
+        } catch (error) {
+          document.getElementsByClassName("flashButton")[0].style.display = "none";
+        }
+        
+        if ("ImageCapture" in window) {
+          console.log("ImageCapture supported");
+          const track = localStream.getVideoTracks()[0];
+          imageCapture = new ImageCapture(track);
+        }else{
+          console.log("ImageCapture not supported");
+        }
+        resolve(true);
+      }).catch(function(err) {
+        console.error('getUserMediaError', err, err.stack);
+        reject(err);
+      });
+    });
+    
+  }
+  
+  function stop() {
+    try{
+      if (localStream){
+        const tracks = localStream.getTracks();
+        for (let i=0;i<tracks.length;i++) {
+          const track = tracks[i];
+          track.stop();
+        }
+      }
+    } catch (e){
+      alert(e.message);
+    }
+  };
+  
+  function captureFrame(canvas,enableScale){
+    let w = video.videoWidth;
+    let h = video.videoHeight;
+    let scaleDownRatio = 1;
+    if (enableScale === true) {
+      if (w > 2000 || h > 2000) {
+        w = 1080;
+        h = w * (video.videoHeight/video.videoWidth);
+        scaleDownRatio = w / video.videoWidth;
+      }
+    }
+    canvas.width  = w;
+    canvas.height = h;
+    let ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    return scaleDownRatio;
+  }
+
+  function captureFullFrame(img){
+    let cvs = document.getElementsByClassName("hiddenCVS")[0];
+    captureFrame(cvs);
+    img.src = cvs.toDataURL();
+  }
+  
+  function takePhoto(img){
+    return new Promise(async function (resolve, reject) {
+      try {
+        let blob = await imageCapture.takePhoto();
+        img.src = URL.createObjectURL(blob);
+        resolve(true);
+      } catch (error) {
+        reject(error); //it may not work with virtual cameras
+      }
+    });
+  }
+
+  function startDetecting(){
+    detecting = false;
+    previousResults = [];
+    interval = setInterval(detect,300);
+  }
+
+  function stopDetecting(){
+    previousResults = [];
+    clearInterval(interval);
+  }
+
+  async function detect() {
+    if (detecting === true) {
+      return;
+    }
+    detecting = true;
+    let cvs = document.getElementsByClassName("hiddenCVSForFrame")[0];
+    let scaleDownRatio = captureFrame(cvs,true);
+    const quads = await ddn.detectQuad(cvs);
+    detecting = false;
+    let overlay = document.getElementsByClassName("overlay")[0];
+    if (quads.length>0) {
+      let quad = quads[0];
+      console.log(quad);
+      if (scaleDownRatio != 1) {
+        scaleQuad(quad,scaleDownRatio);
+      }
+      drawOverlay(quad,overlay);
+      if (document.getElementsByClassName("autoCaptureButton")[0].classList.contains("enabled")) {
+        autoCapture(quad);
+      }
+    }else{
+      overlay.innerHTML = "";
+    }
+  }
+
+  async function autoCapture(points){
+    if (previousResults.length >= 2) {
+      previousResults.push(points)
+      if (steady() == true) {
+        console.log("steady");
+        await capture();
+      }else{
+        console.log("shift result");
+        previousResults.shift();
+      }
+    }else{
+      console.log("add result");
+      previousResults.push(points);
+    }
+  }
+
+  function steady() {
+    let iou1 = intersectionOverUnion(previousResults[0].location.points,previousResults[1].location.points);
+    let iou2 = intersectionOverUnion(previousResults[1].location.points,previousResults[2].location.points);
+    let iou3 = intersectionOverUnion(previousResults[0].location.points,previousResults[2].location.points);
+    console.log(iou1);
+    console.log(iou2);
+    console.log(iou3);
+    if (iou1>0.9 && iou2>0.9 && iou3>0.9) {
+      return true;
+    }else{
+      return false;
+    }
+  }
+
+  function replicatedScaledQuad(quad,scaleDownRatio){
+    let newQuad = JSON.parse(JSON.stringify(quad));
+    let points = newQuad.location.points;
+    for (let index = 0; index < points.length; index++) {
+      const point = points[index];
+      point.x = parseInt(point.x * scaleDownRatio);
+      point.y = parseInt(point.y * scaleDownRatio);
+    }
+    return newQuad;
+  }
+
+  function scaleQuad(quad,scaleDownRatio){
+    let points = quad.location.points;
+    for (let index = 0; index < points.length; index++) {
+      const point = points[index];
+      point.x = parseInt(point.x / scaleDownRatio);
+      point.y = parseInt(point.y / scaleDownRatio);
+    }
+  }
+
+  function drawOverlay(quad,svg){
+    let points = quad.location.points;
+    let polygon;
+    if (svg.getElementsByTagName("polygon").length === 1) {
+      polygon = svg.getElementsByTagName("polygon")[0];
+    }else{
+      polygon = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+      polygon.setAttribute("class","detectedPolygon");
+      svg.appendChild(polygon);
+    }
+    polygon.setAttribute("points",getPointsData(points));
+  }
+
+  function getPointsData(points){
+    let pointsData = points[0].x + "," + points[0].y + " ";
+    pointsData = pointsData + points[1].x + "," + points[1].y +" ";
+    pointsData = pointsData + points[2].x + "," + points[2].y +" ";
+    pointsData = pointsData + points[3].x + "," + points[3].y;
+    return pointsData;
+  }
+
+  async function capture() {
+    stopDetecting();
+    toggleStatusMask("Taking a photo...");
+    let imageCaptured = document.getElementsByClassName("imageCaptured")[0];
+
+    imageCaptured.onload = function(){
+      loadPhotoToSVG(imageCaptured);
+    }
+
+    if (imageCapture) {
+      try {
+        console.log("take photo");
+        await takePhoto(imageCaptured);
+      } catch (error) {
+        console.log(error);
+        captureFullFrame(imageCaptured);  
+      }
+    }else{
+      captureFullFrame(imageCaptured);
+    }
+    
+    toggleStatusMask("");
+    resetPreviousStatus();
+    stop();
+    switchPage(2);
+  }
+
+  function resetPreviousStatus(){
+    rotationDegree = 0;
+    document.getElementById("normalized").style.transform = "";
+    document.getElementsByClassName("flashButton")[0].classList.remove("invert");
+    let svgElement = document.getElementsByClassName("cropperSVG")[0];
+    svgElement.innerHTML = "";
+    if (document.querySelector(".filterImg.selected")) {
+      document.querySelector(".filterImg.selected").classList.remove("selected");
+    }
+    if (document.querySelector(".filterImg.selected")) {
+      document.querySelector(".filterImg.selected").classList.remove("selected");
+    }
+    toggleFilterList(true);
+  }
+
+  async function loadPhotoToSVG(img){
+    let svgElement = document.getElementsByClassName("cropperSVG")[0];
+    svgElement.innerHTML = "";
+    let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    svgImage.setAttribute("href",img.src);
+    svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
+    svgElement.appendChild(svgImage);
+    rectSize = 30/(640/img.width);
+    toggleStatusMask("Detecting...");
+    let quads = await ddn.detectQuad(img);
+    toggleStatusMask("");
+    console.log(quads);
+    if (quads.length>0) {
+      detectedQuad = quads[0];
+      let svg = document.getElementsByClassName("cropperSVG")[0];
+      drawOverlay(quads[0],svg);
+      drawRects(quads[0],svg);
+    }
+  }
+
+  function drawRects(quad,svg){
+    let points = quad.location.points;
+    let rects = [];
+    if (svg.getElementsByTagName("rect").length === 4) {
+      rects = svg.getElementsByTagName("rect");
+    }else{
+      for (let index = 0; index < 4; index++) {
+        let rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+        svg.appendChild(rect);
+        rect.setAttribute("class","vertice")
+        rect.setAttribute("index",index);
+        rect.setAttribute("width",rectSize);
+        rect.setAttribute("height",rectSize);
+        addEventsForRect(rect)
+        rects.push(rect);
+      }
+    }
+    for (let index = 0; index < 4; index++) {
+      let rect = rects[index];
+      rect.setAttribute("x",points[index].x+getOffsetX(index));
+      rect.setAttribute("y",points[index].y+getOffsetY(index));
+    }
+  }
+
+  function getOffsetX(index){
+    if (index == 0 || index == 3) {
+        return - rectSize;
+    }
+    return 0;
+  }
+  
+  function getOffsetY(index){
+    if (index == 0 || index == 1) {
+      return - rectSize;
+    }
+    return 0;
+  }
+    
+  function addEventsForRect(rect) {
+    rect.addEventListener("touchstart", function(event){
+      console.log(event);
+      selectedRect = rect;
+    });
+    rect.addEventListener("touchend", function(event){
+      console.log(event);
+      selectedRect = undefined;
+    });
+    rect.addEventListener("mouseup", function(event){
+      console.log(event);
+      selectedRect = undefined;
+    });
+    rect.addEventListener("mousedown", function(event){
+      console.log(event);
+      selectedRect = rect;
+    });
+    rect.addEventListener("mouseleave", function(event){
+      console.log(event);
+      selectedRect = undefined;
+    });
+  }
+
+  //https://www.petercollingridge.co.uk/tutorials/svg/interactive/dragging/
+  function addEventsForSVG() {
+    let svg = document.getElementsByClassName("cropperSVG")[0];
+    svg.addEventListener('mousedown', startDrag);
+    svg.addEventListener('mousemove', drag);
+    svg.addEventListener('mouseup', endDrag);
+    svg.addEventListener('mouseleave', endDrag);
+    svg.addEventListener('touchstart', startDrag);
+    svg.addEventListener('touchmove', drag);
+    svg.addEventListener('touchend', endDrag);
+    function startDrag(evt) {
+      console.log(evt);
+      if (selectedRect) {
+        offset = getMousePosition(evt,svg);
+        offset.x -= parseFloat(selectedRect.getAttribute("x"));
+        offset.y -= parseFloat(selectedRect.getAttribute("y"));
+      }
+    }
+    function drag(evt) {
+      console.log(evt);
+      if (selectedRect) {
+        evt.preventDefault();
+        let coord = getMousePosition(evt,svg);
+        let selectedIndex = selectedRect.getAttribute("index");
+        let points = detectedQuad.location.points;
+        let point = points[selectedIndex];
+        point.x = (coord.x - offset.x) - getOffsetX(selectedIndex);
+        point.y = (coord.y - offset.y) - getOffsetY(selectedIndex);
+        drawOverlay(detectedQuad, svg);
+        drawRects(detectedQuad, svg);
+      }
+    }
+    function endDrag(evt) {
+      //console.log(evt);
+    }
+  }
+
+  function getMousePosition(evt,svg) {
+    var CTM = svg.getScreenCTM();
+    if (evt.targetTouches) {
+      x = evt.targetTouches[0].clientX;
+      y = evt.targetTouches[0].clientY;
+      return {
+        x: (x - CTM.e) / CTM.a,
+        y: (y - CTM.f) / CTM.d
+      };
+    }else{
+      return {
+        x: (evt.clientX - CTM.e) / CTM.a,
+        y: (evt.clientY - CTM.f) / CTM.d
+      };
+    }
+  }
+
+  async function loadNormalizedAndFilterImages(){
+    let modes = ["blackWhite","grayscale","color"];
+    let img = document.getElementsByClassName("imageCaptured")[0];
+    let cvs = document.getElementsByClassName("hiddenCVS")[0];
+    let ratio = drawResizedThumbnailImageToCanvas(img,cvs);
+    let scaledQuad = replicatedScaledQuad(detectedQuad,ratio);
+    console.log(detectedQuad);
+    console.log(scaledQuad);
+    for (let index = 0; index < modes.length; index++) {
+      const mode = modes[index];
+      let filterImg = document.querySelector("."+mode+" .filterImg");
+      await updateTemplate(mode);
+      let imageData = await ddn.normalize(cvs, {quad: scaledQuad.location});
+      filterImg.src = imageData.image.toCanvas().toDataURL(); 
+      if (mode === "color" ) {
+        imageData = await ddn.normalize(img, {quad: detectedQuad.location})
+        filterImg.normalizedImage = imageData.image.toCanvas().toDataURL();
+      }
+    }
+  }
+
+  function drawResizedThumbnailImageToCanvas(img,cvs){
+    let w = 128;
+    let h = w * (img.naturalHeight/img.naturalWidth);
+    let scaleDownRatio = w / img.naturalWidth;
+    cvs.width  = w;
+    cvs.height = h;
+    console.log(w);
+    console.log(h);
+    console.log(scaleDownRatio);
+    let ctx = cvs.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    return scaleDownRatio;
+  }
+
+  async function updateTemplate(mode){
+    let template;
+    if (mode === "blackWhite") {
+      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_BINARY\"}]}";
+    } else if (mode === "grayscale") {
+      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_GRAYSCALE\"}]}";
+    } else {
+      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_COLOUR\"}]}";
+    }
+    console.log(template);
+    await ddn.setRuntimeSettings(template);
+  }
+
+  function rotateImage(imgElement){
+    let canvas = document.getElementsByClassName("hiddenCVS")[0];
+    let ctx = canvas.getContext("2d");	
+    // Assign width and height.
+    if (rotationDegree === -180) {
+      canvas.width = imgElement.width;
+      canvas.height = imgElement.height;
+    }else{
+      canvas.width = imgElement.height;
+      canvas.height = imgElement.width;
+    }
+    
+    ctx.translate(canvas.width / 2,canvas.height / 2);
+    // Rotate the image and draw it on the canvas. 
+        // (I am not showing the canvas on the webpage.
+    ctx.rotate(rotationDegree * Math.PI / 180);
+    ctx.drawImage(imgElement, -imgElement.width / 2, -imgElement.height / 2);
+    imgElement.src = canvas.toDataURL();
+    console.log("rotate");
+    console.log(imgElement);
+  }
+  </script>
+</body>
+</html>
