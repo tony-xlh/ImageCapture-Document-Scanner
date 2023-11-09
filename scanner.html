@@ -433,6 +433,18 @@
   document.getElementsByClassName("filterButton")[0].addEventListener('click', (event) => {
     toggleFilterList();
   });
+  
+  function getURLParameter(key) {
+    let paramString = window.location.href.split('?')[1];
+    let queryString = new URLSearchParams(paramString);
+    for(let pair of queryString.entries()) {
+      if (pair[0] === key) {
+        return pair[1];
+      }
+    }
+    return undefined;
+  }
+
 
   function toggleStatusMask(text){
     if (text) {
@@ -503,7 +515,11 @@
   }
   
   async function initDDN(){
-    Dynamsoft.DDN.DocumentNormalizer.license = "DLS2eyJoYW5kc2hha2VDb2RlIjoiMjM0ODEwLTE2NTMzNTY5NzQ0ODMiLCJvcmdhbml6YXRpb25JRCI6IjIzNDgxMCJ9";
+    let license = getURLParameter("license");
+    if (!license) {
+      license = "DLS2eyJoYW5kc2hha2VDb2RlIjoiMjM0ODEwLTE2NTMzNTY5NzQ0ODMiLCJvcmdhbml6YXRpb25JRCI6IjIzNDgxMCJ9";
+    }
+    Dynamsoft.DDN.DocumentNormalizer.license = license;
     ddn = await Dynamsoft.DDN.DocumentNormalizer.createInstance();
     ddn.maxCvsSideLength = 9999;
   }
