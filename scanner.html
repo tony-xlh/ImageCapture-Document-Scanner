@@ -6,7 +6,7 @@
   <title>Document Scanner</title>
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>
-  <script src="https://cdn.jsdelivr.net/npm/dynamsoft-document-normalizer@1.0.11/dist/ddn.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dynamsoft-document-normalizer@1.0.12/dist/ddn.js"></script>
   <script src="assets/utils.js"></script>
   <style>
     .full {
@@ -234,6 +234,8 @@
     </select>
     <br/>
     <button class="startCameraBtn">Start Camera</button>
+    <input type="file" id="imageFile" style="display:none;" onchange="loadImageFromFile();" accept=".jpg,.jpeg,.png,.bmp" />
+    <button class="loadImageBtn">Load Image</button>
     <div class="results"></div>
   </div>
   <div class="scanner full" style="display:none;">
@@ -329,6 +331,12 @@
     console.log("start camera");
     switchPage(1);
     startSelectedCamera();
+  });
+  
+  document.getElementsByClassName("loadImageBtn")[0].addEventListener('click', (event) => {
+    console.log("load image");
+    document.getElementById("imageFile").click();
+    //switchPage(2);
   });
 
   document.getElementsByClassName("shutterButton")[0].addEventListener('click', (event) => {
