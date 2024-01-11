@@ -1010,6 +1010,7 @@
       await updateTemplate(mode);
       let imageData = await ddn.normalize(cvs, {quad: scaledQuad.location});
       filterImg.src = imageData.image.toCanvas().toDataURL(); 
+      filterImg.normalizedImage = undefined;
       if (mode === "color" ) {
         imageData = await ddn.normalize(img, {quad: detectedQuad.location})
         filterImg.normalizedImage = imageData.image.toCanvas().toDataURL();
