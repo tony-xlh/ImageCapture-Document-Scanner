@@ -329,8 +329,12 @@
   
   document.getElementsByClassName("startCameraBtn")[0].addEventListener('click', (event) => {
     console.log("start camera");
-    switchPage(1);
-    startSelectedCamera();
+    if (ddn) {
+      switchPage(1);
+      startSelectedCamera();
+    }else{
+      alert("Dynamsoft Document Normalizer not ready yet.");
+    }
   });
   
   document.getElementsByClassName("loadImageBtn")[0].addEventListener('click', (event) => {
