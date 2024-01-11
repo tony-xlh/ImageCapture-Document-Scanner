@@ -346,6 +346,7 @@
   document.getElementsByClassName("closeButton")[0].addEventListener('click', (event) => {
     stopDetecting();
     stop();
+    resetCropper();
     resetPreviousStatus();
     switchPage(0);
   });
@@ -811,8 +812,8 @@
   async function capture() {
     stopDetecting();
     toggleStatusMask("Taking a photo...");
+    resetCropper();
     let imageCaptured = document.getElementsByClassName("imageCaptured")[0];
-
     imageCaptured.onload = function(){
       loadPhotoToCropper(imageCaptured);
     }
@@ -835,10 +836,14 @@
     switchPage(2);
   }
 
+  function resetCropper(){
+    let cropper = document.querySelector("image-cropper");
+    cropper.quad = null;
+    cropper.img = null;
+  }
+
   function resetPreviousStatus(){
     rotationDegree = 0;
-    let cropper = document.querySelector("image-cropper");
-    cropper.img = null;
     document.getElementById("normalized").style.transform = "";
     document.getElementsByClassName("flashButton")[0].classList.remove("invert");
     if (document.querySelector(".filterImg.selected")) {
