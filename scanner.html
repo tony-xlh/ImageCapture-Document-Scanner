@@ -7,6 +7,10 @@
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>
   <script src="https://cdn.jsdelivr.net/npm/dynamsoft-document-normalizer@1.0.12/dist/ddn.js"></script>
+  <script type="module">
+    import { defineCustomElements } from 'https://cdn.jsdelivr.net/npm/image-cropper-component/dist/esm/loader.js';
+    defineCustomElements();
+  </script>
   <script src="assets/utils.js"></script>
   <style>
     .full {
@@ -269,16 +273,7 @@
     </div>
   </div>
   <div class="cropper full" style="display:none;">
-    <svg class="cropperSVG full" version="1.1" xmlns="http://www.w3.org/2000/svg">
-    </svg>
-    <div class="okayCancelFooter">
-      <div class="cropperCancelButton cancel">
-        <img class="icon" src="assets/cancel.svg" alt="cancel"/>
-      </div>
-      <div class="cropperOkayButton okay icon">
-        <img class="icon" src="assets/okay.svg" alt="okay"/>
-      </div>
-    </div>
+    <image-cropper></image-cropper>
   </div>
   <div class="resultViewer full" style="display:none;">
     <div class="imageContainer">
@@ -354,23 +349,30 @@
     resetPreviousStatus();
     switchPage(0);
   });
-  
-  document.getElementsByClassName("cropperCancelButton")[0].addEventListener('click', (event) => {
-    switchPage(1);
-    startSelectedCamera();
-  });
 
   document.getElementsByClassName("resultViewerCancelButton")[0].addEventListener('click', (event) => {
     switchPage(2);
   });
 
-  document.getElementsByClassName("cropperOkayButton")[0].addEventListener('click', async (event) => {
-    toggleStatusMask("Normalizing...");
-    await loadNormalizedAndFilterImages();
-    document.getElementById("normalized").src = document.querySelector(".color .filterImg").normalizedImage;
-    toggleStatusMask("");
-    switchPage(3);
-  });
+  function registerEventsForCropper(){
+    const cropper = document.querySelector("image-cropper");
+    cropper.addEventListener("confirmed",async function(){
+      console.log("confirm");
+      const quad = await cropper.getQuad();
+      detectedQuad.location = quad;
+      toggleStatusMask("Normalizing...");
+      await loadNormalizedAndFilterImages();
+      document.getElementById("normalized").src = document.querySelector(".color .filterImg").normalizedImage;
+      toggleStatusMask("");
+      switchPage(3);
+    });
+    cropper.addEventListener("canceled",function(){
+      switchPage(1);
+      startSelectedCamera();
+    });
+  }
+
+  registerEventsForCropper();
 
   document.getElementsByClassName("resultViewerOkayButton")[0].addEventListener('click', (event) => {
     let results = document.getElementsByClassName("results")[0];
@@ -513,7 +515,6 @@
   let rotationDegree = 0;
   let previousResults = [];
   window.onload = async function() {
-    addEventsForSVG();
     await initDDN();
     await loadCameraDevices();
     loadCameraDevicesToSelect();
@@ -704,7 +705,7 @@
 
   function startDetecting(){
     detecting = false;
-    previousResults = [];
+    stopDetecting();
     interval = setInterval(detect,300);
   }
 
@@ -815,7 +816,7 @@
     let imageCaptured = document.getElementsByClassName("imageCaptured")[0];
 
     imageCaptured.onload = function(){
-      loadPhotoToSVG(imageCaptured);
+      loadPhotoToCropper(imageCaptured);
     }
 
     if (imageCapture) {
@@ -838,10 +839,10 @@
 
   function resetPreviousStatus(){
     rotationDegree = 0;
+    let cropper = document.querySelector("image-cropper");
+    cropper.img = null;
     document.getElementById("normalized").style.transform = "";
     document.getElementsByClassName("flashButton")[0].classList.remove("invert");
-    let svgElement = document.getElementsByClassName("cropperSVG")[0];
-    svgElement.innerHTML = "";
     if (document.querySelector(".filterImg.selected")) {
       document.querySelector(".filterImg.selected").classList.remove("selected");
     }
@@ -851,14 +852,9 @@
     toggleFilterList(true);
   }
 
-  async function loadPhotoToSVG(img){
-    let svgElement = document.getElementsByClassName("cropperSVG")[0];
-    svgElement.innerHTML = "";
-    let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
-    svgImage.setAttribute("href",img.src);
-    svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
-    svgElement.appendChild(svgImage);
-    rectSize = 30/(640/img.width);
+  async function loadPhotoToCropper(img){
+    let cropper = document.querySelector("image-cropper");
+    cropper.img = img;
     toggleStatusMask("Detecting...");
     let quads = await ddn.detectQuad(img);
     toggleStatusMask("");
@@ -876,126 +872,9 @@
       ]}})
     }
     detectedQuad = quads[0];
-    let svg = document.getElementsByClassName("cropperSVG")[0];
-    drawOverlay(quads[0],svg);
-    drawRects(quads[0],svg);
-  }
-
-  function drawRects(quad,svg){
-    let points = quad.location.points;
-    let rects = [];
-    if (svg.getElementsByTagName("rect").length === 4) {
-      rects = svg.getElementsByTagName("rect");
-    }else{
-      for (let index = 0; index < 4; index++) {
-        let rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
-        svg.appendChild(rect);
-        rect.setAttribute("class","vertice")
-        rect.setAttribute("index",index);
-        rect.setAttribute("width",rectSize);
-        rect.setAttribute("height",rectSize);
-        addEventsForRect(rect)
-        rects.push(rect);
-      }
-    }
-    for (let index = 0; index < 4; index++) {
-      let rect = rects[index];
-      rect.setAttribute("x",points[index].x+getOffsetX(index));
-      rect.setAttribute("y",points[index].y+getOffsetY(index));
-    }
-  }
-
-  function getOffsetX(index){
-    if (index == 0 || index == 3) {
-        return - rectSize;
-    }
-    return 0;
-  }
-  
-  function getOffsetY(index){
-    if (index == 0 || index == 1) {
-      return - rectSize;
-    }
-    return 0;
+    cropper.quad = detectedQuad.location;
   }
     
-  function addEventsForRect(rect) {
-    rect.addEventListener("touchstart", function(event){
-      console.log(event);
-      selectedRect = rect;
-    });
-    rect.addEventListener("touchend", function(event){
-      console.log(event);
-      selectedRect = undefined;
-    });
-    rect.addEventListener("mouseup", function(event){
-      console.log(event);
-      selectedRect = undefined;
-    });
-    rect.addEventListener("mousedown", function(event){
-      console.log(event);
-      selectedRect = rect;
-    });
-    rect.addEventListener("mouseleave", function(event){
-      console.log(event);
-      selectedRect = undefined;
-    });
-  }
-
-  //https://www.petercollingridge.co.uk/tutorials/svg/interactive/dragging/
-  function addEventsForSVG() {
-    let svg = document.getElementsByClassName("cropperSVG")[0];
-    svg.addEventListener('mousedown', startDrag);
-    svg.addEventListener('mousemove', drag);
-    svg.addEventListener('mouseup', endDrag);
-    svg.addEventListener('mouseleave', endDrag);
-    svg.addEventListener('touchstart', startDrag);
-    svg.addEventListener('touchmove', drag);
-    svg.addEventListener('touchend', endDrag);
-    function startDrag(evt) {
-      console.log(evt);
-      if (selectedRect) {
-        offset = getMousePosition(evt,svg);
-        offset.x -= parseFloat(selectedRect.getAttribute("x"));
-        offset.y -= parseFloat(selectedRect.getAttribute("y"));
-      }
-    }
-    function drag(evt) {
-      console.log(evt);
-      if (selectedRect) {
-        evt.preventDefault();
-        let coord = getMousePosition(evt,svg);
-        let selectedIndex = selectedRect.getAttribute("index");
-        let points = detectedQuad.location.points;
-        let point = points[selectedIndex];
-        point.x = (coord.x - offset.x) - getOffsetX(selectedIndex);
-        point.y = (coord.y - offset.y) - getOffsetY(selectedIndex);
-        drawOverlay(detectedQuad, svg);
-        drawRects(detectedQuad, svg);
-      }
-    }
-    function endDrag(evt) {
-      //console.log(evt);
-    }
-  }
-
-  function getMousePosition(evt,svg) {
-    var CTM = svg.getScreenCTM();
-    if (evt.targetTouches) {
-      x = evt.targetTouches[0].clientX;
-      y = evt.targetTouches[0].clientY;
-      return {
-        x: (x - CTM.e) / CTM.a,
-        y: (y - CTM.f) / CTM.d
-      };
-    }else{
-      return {
-        x: (evt.clientX - CTM.e) / CTM.a,
-        y: (evt.clientY - CTM.f) / CTM.d
-      };
-    }
-  }
-
   async function loadNormalizedAndFilterImages(){
     let modes = ["blackWhite","grayscale","color"];
     let img = document.getElementsByClassName("imageCaptured")[0];
