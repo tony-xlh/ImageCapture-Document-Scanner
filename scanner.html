@@ -236,6 +236,7 @@
     <button class="startCameraBtn">Start Camera</button>
     <input type="file" id="imageFile" style="display:none;" onchange="loadImageFromFile();" accept=".jpg,.jpeg,.png,.bmp" />
     <button class="loadImageBtn" style="display:none;">Load Image</button>
+    <div class="loadingStatus">Loading...</div>
     <div class="results"></div>
   </div>
   <div class="scanner full" style="display:none;">
@@ -513,9 +514,10 @@
   let previousResults = [];
   window.onload = async function() {
     addEventsForSVG();
-    initDDN();
+    await initDDN();
     await loadCameraDevices();
     loadCameraDevicesToSelect();
+    document.getElementsByClassName("loadingStatus")[0].innerHTML = "";
   }
   
   async function initDDN(){
