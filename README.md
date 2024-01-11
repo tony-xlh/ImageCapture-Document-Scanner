@@ -6,4 +6,4 @@ A Web document scanner demo using [Dynamsoft Document Normalizer](https://www.dy
 
 [Demo video](https://user-images.githubusercontent.com/5462205/210918076-c23f1ac3-6f56-4698-b1ae-b570f5b4f632.mp4)
 
-
+Capacitor version: https://github.com/tony-xlh/capacitor-plugin-dynamsoft-document-normalizer
