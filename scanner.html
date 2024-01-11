@@ -857,12 +857,22 @@
     let quads = await ddn.detectQuad(img);
     toggleStatusMask("");
     console.log(quads);
-    if (quads.length>0) {
-      detectedQuad = quads[0];
-      let svg = document.getElementsByClassName("cropperSVG")[0];
-      drawOverlay(quads[0],svg);
-      drawRects(quads[0],svg);
+    if (quads.length == 0) {
+      let x = img.width*0.2;
+      let width = img.width*0.6;
+      let y = img.height*0.2;
+      let height = img.height*0.4;
+      quads.push({location:{points:[
+        {x:x,y:y},
+        {x:x+width,y:y},
+        {x:x+width,y:y+height},
+        {x:x,y:y+height},
+      ]}})
     }
+    detectedQuad = quads[0];
+    let svg = document.getElementsByClassName("cropperSVG")[0];
+    drawOverlay(quads[0],svg);
+    drawRects(quads[0],svg);
   }
 
   function drawRects(quad,svg){
