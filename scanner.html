@@ -523,7 +523,7 @@
   async function initDDN(){
     let license = getURLParameter("license");
     if (!license) {
-      license = "DLS2eyJoYW5kc2hha2VDb2RlIjoiMTAwMjI3NzYzLU1UQXdNakkzTnpZekxXUmtiaTEzWldJdFZISnBZV3hRY205cSIsIm1haW5TZXJ2ZXJVUkwiOiJodHRwczovL21kbHMuZHluYW1zb2Z0b25saW5lLmNvbS8iLCJvcmdhbml6YXRpb25JRCI6IjEwMDIyNzc2MyIsInN0YW5kYnlTZXJ2ZXJVUkwiOiJodHRwczovL3NkbHMuZHluYW1zb2Z0b25saW5lLmNvbS8iLCJjaGVja0NvZGUiOi01NTA1MTUzNzF9";
+      license = "DLS2eyJvcmdhbml6YXRpb25JRCI6IjIwMDAwMSJ9";
     }
     Dynamsoft.DDN.DocumentNormalizer.license = license;
     ddn = await Dynamsoft.DDN.DocumentNormalizer.createInstance();
@@ -952,3 +952,4 @@
 </body>
 
 </html>
+
