@@ -604,7 +604,7 @@
     
       if (options.deviceId){
         constraints = {
-          video: {deviceId: options.deviceId},
+          video: {deviceId: { exact: options.deviceId }},
           audio: false
         }
       }else{
