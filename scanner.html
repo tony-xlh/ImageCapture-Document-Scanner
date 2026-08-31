@@ -6,7 +6,7 @@
   <title>Document Scanner</title>
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>
-  <script src="https://cdn.jsdelivr.net/npm/dynamsoft-document-normalizer@1.0.12/dist/ddn.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dynamsoft-capture-vision-bundle@3.6.3000/dist/dcv.bundle.js"></script>
   <script type="module">
     import { defineCustomElements } from 'https://cdn.jsdelivr.net/npm/image-cropper-component/dist/esm/loader.js';
     defineCustomElements();
@@ -325,11 +325,11 @@
   
   document.getElementsByClassName("startCameraBtn")[0].addEventListener('click', (event) => {
     console.log("start camera");
-    if (ddn) {
+    if (cvr) {
       switchPage(1);
       startSelectedCamera();
     }else{
-      alert("Dynamsoft Document Normalizer not ready yet.");
+      alert("Dynamsoft Capture Vision not ready yet.");
     }
   });
   
@@ -488,9 +488,8 @@
         if (!imgElement.normalizedImage) {
           toggleStatusMask("Normalizing...");
           const mode = modes[i];
-          await updateTemplate(mode);
           let img = document.getElementsByClassName("imageCaptured")[0];
-          let imageData = await ddn.normalize(img, {quad: detectedQuad.location});
+          let imageData = await normalize(img, detectedQuad.location, colourModeFor(mode));
           imgElement.normalizedImage = imageData.image.toCanvas().toDataURL();
           toggleStatusMask("");
         }
@@ -502,7 +501,7 @@
   addEventsForFilterImages();
   
   
-  let ddn;
+  let cvr;
   let imageCapture;
   let localStream;
   let cameraDevices = [];
@@ -514,20 +513,44 @@
   let rotationDegree = 0;
   let previousResults = [];
   window.onload = async function() {
-    await initDDN();
+    await initDCV();
     await loadCameraDevices();
     loadCameraDevicesToSelect();
     document.getElementsByClassName("loadingStatus")[0].innerHTML = "";
   }
   
-  async function initDDN(){
+  async function initDCV(){
     let license = getURLParameter("license");
     if (!license) {
       license = "DLS2eyJvcmdhbml6YXRpb25JRCI6IjIwMDAwMSJ9";
     }
-    Dynamsoft.DDN.DocumentNormalizer.license = license;
-    ddn = await Dynamsoft.DDN.DocumentNormalizer.createInstance();
-    ddn.maxCvsSideLength = 9999;
+    await Dynamsoft.License.LicenseManager.initLicense(license, true);
+    cvr = await Dynamsoft.CVR.CaptureVisionRouter.createInstance();
+  }
+
+  const CRIT = () => Dynamsoft.Core.EnumCapturedResultItemType;
+
+  async function detectQuad(source){
+    let result = await cvr.capture(source, "DetectDocumentBoundaries_Default");
+    return result.items
+      .filter(i => i.type === CRIT().CRIT_DETECTED_QUAD)
+      .map(i => ({ location: i.location }));
+  }
+
+  async function normalize(source, quad, colourMode){
+    let parameters = await cvr.getSimplifiedSettings("NormalizeDocument_Default");
+    parameters.roi = quad;
+    parameters.roiMeasuredInPercentage = false;
+    parameters.documentSettings.colourMode = colourMode;
+    parameters.documentSettings.scaleDownThreshold = 9999; // process at full resolution
+    await cvr.updateSettings("NormalizeDocument_Default", parameters);
+    let result = await cvr.capture(source, "NormalizeDocument_Default");
+    for (let item of result.items) {
+      if (item.type === CRIT().CRIT_ENHANCED_IMAGE && item.toCanvas) {
+        return { image: item };
+      }
+    }
+    return null;
   }
   
   async function loadCameraDevices(){
@@ -636,10 +659,22 @@
           document.getElementsByClassName("flashButton")[0].style.display = "none";
         }
         
+        // The ImageCapture API is not supported everywhere, so handle each case:
+        // - Chrome on Android: fully supported -> high-resolution takePhoto()
+        // - Desktop Chrome/Edge: the API exists but is not reliable for every track
+        //   (e.g. virtual cameras), so construction or takePhoto() may throw -> fall back to a canvas frame grab
+        // - Safari/Firefox: the API is missing entirely -> always fall back
+        // Stage 1: feature-detect the API. Stage 2: guard the constructor per track.
+        // Stage 3: catch takePhoto() failures in capture() (see below).
+        imageCapture = undefined; // clear any stale instance from a previously selected device
         if ("ImageCapture" in window) {
-          console.log("ImageCapture supported");
-          const track = localStream.getVideoTracks()[0];
-          imageCapture = new ImageCapture(track);
+          try {
+            const track = localStream.getVideoTracks()[0];
+            imageCapture = new ImageCapture(track);
+            console.log("ImageCapture supported");
+          } catch (error) {
+            console.log("ImageCapture not supported for this track", error);
+          }
         }else{
           console.log("ImageCapture not supported");
         }
@@ -720,7 +755,7 @@
     detecting = true;
     let cvs = document.getElementsByClassName("hiddenCVSForFrame")[0];
     let scaleDownRatio = captureFrame(cvs,true);
-    const quads = await ddn.detectQuad(cvs);
+    const quads = await detectQuad(cvs);
     detecting = false;
     let overlay = document.getElementsByClassName("overlay")[0];
     if (quads.length>0) {
@@ -859,7 +894,7 @@
     let cropper = document.querySelector("image-cropper");
     cropper.img = img;
     toggleStatusMask("Detecting...");
-    let quads = await ddn.detectQuad(img);
+    let quads = await detectQuad(img);
     toggleStatusMask("");
     console.log(quads);
     if (quads.length == 0) {
@@ -889,12 +924,11 @@
     for (let index = 0; index < modes.length; index++) {
       const mode = modes[index];
       let filterImg = document.querySelector("."+mode+" .filterImg");
-      await updateTemplate(mode);
-      let imageData = await ddn.normalize(cvs, {quad: scaledQuad.location});
+      let imageData = await normalize(cvs, scaledQuad.location, colourModeFor(mode));
       filterImg.src = imageData.image.toCanvas().toDataURL(); 
       filterImg.normalizedImage = undefined;
       if (mode === "color" ) {
-        imageData = await ddn.normalize(img, {quad: detectedQuad.location})
+        imageData = await normalize(img, detectedQuad.location, colourModeFor(mode));
         filterImg.normalizedImage = imageData.image.toCanvas().toDataURL();
       }
     }
@@ -914,17 +948,14 @@
     return scaleDownRatio;
   }
 
-  async function updateTemplate(mode){
-    let template;
+  function colourModeFor(mode){
+    // Dynamsoft.DDN.EnumImageColourMode: ICM_COLOUR = 0, ICM_GRAYSCALE = 1, ICM_BINARY = 2
     if (mode === "blackWhite") {
-      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_BINARY\"}]}";
+      return 2;
     } else if (mode === "grayscale") {
-      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_GRAYSCALE\"}]}";
-    } else {
-      template = "{\"GlobalParameter\":{\"Name\":\"GP\",\"MaxTotalImageDimension\":0},\"ImageParameterArray\":[{\"Name\":\"IP-1\",\"NormalizerParameterName\":\"NP-1\",\"BaseImageParameterName\":\"\"}],\"NormalizerParameterArray\":[{\"Name\":\"NP-1\",\"ContentType\":\"CT_DOCUMENT\",\"ColourMode\":\"ICM_COLOUR\"}]}";
+      return 1;
     }
-    console.log(template);
-    await ddn.setRuntimeSettings(template);
+    return 0;
   }
 
   function rotateImage(imgElement){
