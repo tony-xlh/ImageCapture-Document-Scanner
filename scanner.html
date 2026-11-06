@@ -535,6 +535,7 @@
   const CRIT = () => Dynamsoft.Core.EnumCapturedResultItemType;
 
   async function detectQuad(source){
+    cvr.maxImageSideLength = 9999;
     let result = await cvr.capture(source, "DetectDocumentBoundaries_Default");
     return result.items
       .filter(i => i.type === CRIT().CRIT_DETECTED_QUAD)
@@ -548,6 +549,7 @@
     parameters.documentSettings.colourMode = colourMode;
     parameters.documentSettings.scaleDownThreshold = 9999; // process at full resolution
     await cvr.updateSettings("NormalizeDocument_Default", parameters);
+    cvr.maxImageSideLength = 9999;
     let result = await cvr.capture(source, "NormalizeDocument_Default");
     for (let item of result.items) {
       if (item.type === CRIT().CRIT_ENHANCED_IMAGE && item.toCanvas) {
