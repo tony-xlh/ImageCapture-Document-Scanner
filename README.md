@@ -8,6 +8,8 @@ A Web document scanner demo using [Dynamsoft Capture Vision](https://www.dynamso
 
 Capacitor version: https://github.com/tony-xlh/capacitor-plugin-dynamsoft-document-normalizer
 
+The **Try ImageCapture (higher resolution)** checkbox on the home page opts in to `ImageCapture.takePhoto()`. When it is unchecked (default), or the API is unavailable/fails for the selected camera, the demo grabs a frame from the video element instead.
+
 
 ## Run
 

@@ -237,6 +237,11 @@
       <option value="3840x2160">3840x2160</option>
     </select>
     <br/>
+    <label class="imageCaptureOption" title="Higher-resolution photo via takePhoto(). Falls back to a canvas frame grab if unsupported.">
+      <input type="checkbox" class="useImageCaptureCheckbox">
+      Try ImageCapture (higher resolution)
+    </label>
+    <br/>
     <button class="startCameraBtn">Start Camera</button>
     <input type="file" id="imageFile" style="display:none;" onchange="loadImageFromFile();" accept=".jpg,.jpeg,.png,.bmp" />
     <button class="loadImageBtn" style="display:none;">Load Image</button>
@@ -502,7 +507,6 @@
   
   
   let cvr;
-  let imageCapture;
   let localStream;
   let cameraDevices = [];
   let interval;
@@ -658,26 +662,7 @@
         } catch (error) {
           document.getElementsByClassName("flashButton")[0].style.display = "none";
         }
-        
-        // The ImageCapture API is not supported everywhere, so handle each case:
-        // - Chrome on Android: fully supported -> high-resolution takePhoto()
-        // - Desktop Chrome/Edge: the API exists but is not reliable for every track
-        //   (e.g. virtual cameras), so construction or takePhoto() may throw -> fall back to a canvas frame grab
-        // - Safari/Firefox: the API is missing entirely -> always fall back
-        // Stage 1: feature-detect the API. Stage 2: guard the constructor per track.
-        // Stage 3: catch takePhoto() failures in capture() (see below).
-        imageCapture = undefined; // clear any stale instance from a previously selected device
-        if ("ImageCapture" in window) {
-          try {
-            const track = localStream.getVideoTracks()[0];
-            imageCapture = new ImageCapture(track);
-            console.log("ImageCapture supported");
-          } catch (error) {
-            console.log("ImageCapture not supported for this track", error);
-          }
-        }else{
-          console.log("ImageCapture not supported");
-        }
+
         resolve(true);
       }).catch(function(err) {
         console.error('getUserMediaError', err, err.stack);
@@ -725,9 +710,20 @@
     img.src = cvs.toDataURL();
   }
   
+  function useImageCapture(){
+    // Only try ImageCapture when the user opts in. Fall back to a canvas frame grab otherwise:
+    // - Chrome on Android: fully supported -> high-resolution takePhoto()
+    // - Desktop Chrome/Edge: the API exists but is not reliable for every track
+    //   (e.g. virtual cameras), so construction or takePhoto() may throw -> fall back to a canvas frame grab
+    // - Safari/Firefox: the API is missing entirely -> always fall back
+    return document.getElementsByClassName("useImageCaptureCheckbox")[0].checked && "ImageCapture" in window;
+  }
+
   function takePhoto(img){
     return new Promise(async function (resolve, reject) {
       try {
+        const track = localStream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(track);
         let blob = await imageCapture.takePhoto();
         img.src = URL.createObjectURL(blob);
         resolve(true);
@@ -853,13 +849,13 @@
       loadPhotoToCropper(imageCaptured);
     }
 
-    if (imageCapture) {
+    if (useImageCapture()) {
       try {
-        console.log("take photo");
+        console.log("take photo with ImageCapture");
         await takePhoto(imageCaptured);
       } catch (error) {
         console.log(error);
-        captureFullFrame(imageCaptured);  
+        captureFullFrame(imageCaptured);
       }
     }else{
       captureFullFrame(imageCaptured);
