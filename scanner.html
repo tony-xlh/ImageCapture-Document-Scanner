@@ -547,7 +547,6 @@
     parameters.roi = quad;
     parameters.roiMeasuredInPercentage = false;
     parameters.documentSettings.colourMode = colourMode;
-    parameters.documentSettings.scaleDownThreshold = 9999; // process at full resolution
     await cvr.updateSettings("NormalizeDocument_Default", parameters);
     cvr.maxImageSideLength = 9999;
     let result = await cvr.capture(source, "NormalizeDocument_Default");
